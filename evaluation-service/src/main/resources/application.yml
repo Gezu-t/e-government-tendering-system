@@ -1,7 +1,7 @@
 server:
   port: ${SERVER_PORT:8087}
   servlet:
-    context-path: /evaluation-service
+    context-path: /
 
 spring:
   application:

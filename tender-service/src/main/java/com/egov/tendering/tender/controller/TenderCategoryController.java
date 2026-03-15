@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("api/tenderCategory")
+@RequestMapping("/api/tenderCategory")
 @RequiredArgsConstructor
 @Slf4j
 public class TenderCategoryController  {

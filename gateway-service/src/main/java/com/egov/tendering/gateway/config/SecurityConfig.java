@@ -57,6 +57,13 @@ public class SecurityConfig {
                         // Service-specific public endpoints
                         .pathMatchers("/api/users/register").permitAll()
 
+                        // Public tender browsing (read-only, no auth required)
+                        .pathMatchers(org.springframework.http.HttpMethod.GET, "/api/tenders", "/api/tenders/*").permitAll()
+                        .pathMatchers(org.springframework.http.HttpMethod.GET, "/api/tenders/*/clarifications/public").permitAll()
+
+                        // OPTIONS preflight requests
+                        .pathMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+
                         // Secured endpoints requiring authentication
                         .anyExchange().authenticated()
                 )
