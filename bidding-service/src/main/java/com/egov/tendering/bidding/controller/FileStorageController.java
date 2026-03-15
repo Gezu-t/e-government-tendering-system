@@ -45,9 +45,9 @@ public class FileStorageController {
         log.info("REST request to upload file with prefix: {}", prefix);
 
         String fileName = fileStorageService.storeFile(file, prefix);
-        String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/api/files/")
-                .path(fileName)
+        String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentRequestUri()
+                .path("/{fileName}")
+                .buildAndExpand(fileName)
                 .toUriString();
 
         Map<String, String> response = new HashMap<>();
