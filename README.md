@@ -1,305 +1,230 @@
 # E-Government Tendering System
 
-A comprehensive microservices-based platform for managing government procurement and tendering processes.
-# Note: This project is under development there is a lot of work to be done.
+A comprehensive microservices-based platform for managing government procurement and tendering processes, built on research by Simon Fong and Zhuang Yan.
+
 ## Overview
 
-The E-Government Tendering System is designed to streamline government procurement processes through a modern, secure, and transparent web-based solution. It allows government agencies to publish tenders, vendors to submit bids, and officials to evaluate and award contracts in a consistent and auditable manner.
+The E-Government Tendering System digitizes the full government procurement lifecycle — from vendor registration and tender publication through sealed bid submission, multi-criteria evaluation, contract award, and post-award performance monitoring. The platform achieves transparency, accountability, and efficiency through event-driven architecture, cryptographic bid sealing, digital signatures, and automated anti-collusion detection.
 
-The platform is built using a microservices architecture to ensure scalability, maintainability, and the ability to evolve individual components independently.
+The system targets the **56% efficiency improvement** and **42% cycle time reduction** demonstrated in the Fong & Yan paper by automating manual backend processes and providing decision support for optimal bidder allocation.
 
-![System Architecture](docs/images/architecture.png)
-
-## Microservices
-
-The system consists of the following microservices:
-
-### Core Services
-
-| Service | Description | Port |
-|---------|-------------|------|
-| **Discovery Service** | Service registry and discovery using Netflix Eureka | 8761 |
-| **Config Service** | Centralized configuration server using Spring Cloud Config | 8888 |
-| **Gateway Service** | API gateway using Spring Cloud Gateway | 8080 |
-| **Auth Service** | Authentication and authorization service using OAuth2/JWT | 9000 |
-
-### Business Services
-
-| Service | Description | Port |
-|---------|-------------|------|
-| **User Service** | Manages users, roles, and permissions | 8081 |
-| **Tender Service** | Handles tender creation, publication, and management | 8082 |
-| **Bidding Service** | Manages the bid submission and tracking process | 8083 |
-| **Contract Service** | Handles contract creation and management after bid selection | 8084 |
-| **Document Service** | Manages document uploads, storage, and retrieval | 8085 |
-| **Notification Service** | Handles system notifications through various channels | 8086 |
-| **Evaluation Service** | Supports bid evaluation processes and decision-making | 8087 |
-| **Audit Service** | Tracks and logs all critical system actions | 8088 |
-
-## Technical Stack
-
-- **Language**: Java 17
-- **Framework**: Spring Boot 3.2.x, Spring Cloud 2023.0.x
-- **Build Tool**: Maven
-- **Database**: MySQL 8.0
-- **Messaging**: Apache Kafka
-- **Service Discovery**: Netflix Eureka
-- **API Gateway**: Spring Cloud Gateway
-- **Authentication**: OAuth 2.0 with JWT
-- **Documentation**: OpenAPI 3 (Swagger)
-- **Containerization**: Docker, Docker Compose
-- **Testing**: JUnit 5, Mockito, Testcontainers
-- **CI/CD**: GitHub Actions (or your preferred CI/CD tool)
-
-## System Requirements
-
-- Java 17 or higher
-- Maven 3.8.x or higher
-- Docker and Docker Compose (for containerized deployment)
-- MySQL 8.0
-- Kafka 3.x
-
-## Project Structure
+## System Architecture
 
 ```
-e-government-tendering-system/
-├── common-util/                  # Shared libraries and utilities
-├── config-service/              # Centralized configuration service
-├── discovery-service/           # Service registry and discovery
-├── gateway-service/             # API gateway
-├── user-service/                # User management service
-├── tender-service/              # Tender management service
-├── bidding-service/             # Bid management service
-├── contract-service/            # Contract management service
-├── document-service/            # Document management service
-├── notification-service/        # Notification service
-├── audit-service/               # Audit logging service
-├── evaluation-service/          # Bid evaluation service
-├── docker-compose.yml           # Docker Compose for local deployment
-└── pom.xml                      # Parent POM file
+                                    ┌─────────────────────┐
+                                    │   React Frontend     │
+                                    │   (Port 3000)        │
+                                    └──────────┬──────────┘
+                                               │
+                                    ┌──────────▼──────────┐
+                                    │   API Gateway        │
+                                    │   Spring Cloud GW    │
+                                    │   (Port 8080)        │
+                                    │   + Rate Limiting     │
+                                    │   + JWT Validation    │
+                                    │   + Circuit Breaker   │
+                                    └──────────┬──────────┘
+                                               │
+                 ┌─────────────────────────────┼─────────────────────────────┐
+                 │                             │                             │
+    ┌────────────▼───────────┐   ┌────────────▼───────────┐   ┌────────────▼───────────┐
+    │  Discovery Service     │   │  Config Service         │   │  Redis                  │
+    │  Netflix Eureka        │   │  Spring Cloud Config    │   │  Rate Limiting Cache    │
+    │  (Port 8761)           │   │  (Port 8888)            │   │  (Port 6379)            │
+    └────────────────────────┘   └─────────────────────────┘   └─────────────────────────┘
+
+    ┌──────────────────────────────────────────────────────────────────────────────────┐
+    │                           BUSINESS SERVICES                                       │
+    │                                                                                   │
+    │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+    │  │ User Service  │  │Tender Service│  │Bidding Svc   │  │ Evaluation   │          │
+    │  │ (8081)        │  │ (8082)       │  │ (8083)       │  │ Svc (8087)   │          │
+    │  │              │  │              │  │              │  │              │          │
+    │  │ - Auth/JWT   │  │ - CRUD       │  │ - Sealed Bids│  │ - Scoring    │          │
+    │  │ - Roles      │  │ - Amendments │  │ - Digital Sig│  │ - Ranking    │          │
+    │  │ - Vendor     │  │ - Pre-bid Q&A│  │ - Anti-collu │  │ - Multi-crit │          │
+    │  │   Qualific.  │  │ - Categories │  │ - Envelopes  │  │ - CoI Decl.  │          │
+    │  │ - Org Blackl.│  │              │  │              │  │ - Committee  │          │
+    │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
+    │         │                 │                 │                 │                    │
+    │  ┌──────▼───────┐  ┌──────▼───────┐  ┌──────▼───────┐  ┌──────▼───────┐          │
+    │  │Contract Svc  │  │Document Svc  │  │Notification  │  │ Audit Service│          │
+    │  │ (8084)       │  │ (8085)       │  │Svc (8086)    │  │ (8088)       │          │
+    │  │              │  │              │  │              │  │              │          │
+    │  │ - Milestones │  │ - Upload     │  │ - Email      │  │ - Event Log  │          │
+    │  │ - Amendments │  │ - Access Ctrl│  │ - SMS/Push   │  │ - Reports    │          │
+    │  │ - Vendor Perf│  │ - Metadata   │  │ - Templates  │  │ - Statistics │          │
+    │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘          │
+    └──────────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────────────────────────────────────────────────────────────────────────────┐
+    │                           INFRASTRUCTURE                                          │
+    │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐                │
+    │  │   MySQL 8.0       │  │  Apache Kafka     │  │  Zookeeper       │                │
+    │  │   (Port 3306)     │  │  (Port 9092)      │  │  (Port 2181)     │                │
+    │  │   8 databases     │  │  Event streaming  │  │                  │                │
+    │  └──────────────────┘  └──────────────────┘  └──────────────────┘                │
+    └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Getting Started
+## Quick Start
 
 ### Prerequisites
+- Java 17+, Maven 3.8+, Docker & Docker Compose, Node.js 18+
 
-- Java 17 or higher
-- Maven 3.8.x or higher
-- Docker and Docker Compose (for containerized deployment)
-
-### Building the Project
+### One-Command Startup
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/e-government-tendering-system.git
-cd e-government-tendering-system
-
-# Build the entire project
-mvn clean install
+./scripts/start.sh              # Full stack (infra + build + services + frontend)
+./scripts/start.sh infra        # MySQL, Kafka, Redis via Docker only
+./scripts/start.sh services     # Spring Boot services only
+./scripts/start.sh frontend     # React dev server only
+./scripts/start.sh status       # Show status of all components
+./scripts/start.sh stop         # Stop everything
 ```
 
-### Running Locally with Docker Compose // we will include this part in the feature
+### Access Points
 
-```bash
-# Start all services
-docker-compose up -d
+| Component | URL |
+|-----------|-----|
+| Frontend | http://localhost:3000 |
+| Gateway API | http://localhost:8080 |
+| Eureka Dashboard | http://localhost:8761 |
+| Kafka UI | http://localhost:8090 |
 
-# View logs
-docker-compose logs -f [service-name]
+## User Roles
 
-# Stop all services
-docker-compose down
-```
+| Role | Capabilities |
+|------|-------------|
+| **TENDEREE** | Create/publish/amend tenders, manage evaluations, award contracts, view reports |
+| **TENDERER** | Browse tenders, submit pre-qualification, submit sealed bids, track contracts |
+| **EVALUATOR** | Score bids against criteria, declare conflicts of interest |
+| **COMMITTEE** | Review evaluations, approve/reject committee decisions |
 
-### Running Individual Services
+## Paper-Aligned Features
 
-```bash
-cd service-name
-mvn spring-boot:run
-```
+Implementing the key requirements from Fong & Yan's "Design of a Web-based Tendering System for e-Government Procurement" (ICEGOV 2009):
 
-Note: For local development, you need to start the Core Services (Discovery, Config, Gateway) before starting the Business Services.
-
-## Development Workflow
-
-1. **Setup**: Clone the repository and build the project
-2. **Core Services**: Start the Discovery, Config, and Gateway services
-3. **Database**: Ensure MySQL is running and the required databases are created
-4. **Kafka**: Start Kafka for event processing
-5. **Business Services**: Start the required business services for your development task
-6. **Testing**: Use Swagger UI for API testing or write automated tests
-
-## API Documentation
-
-Each service exposes its API documentation via Swagger UI at:
-```
-http://localhost:<service-port>/swagger-ui.html
-```
-
-To view documentation for all services through the Gateway:
-```
-http://localhost:8080/swagger-ui.html
-```
-
-## Configuration
-
-The configuration for all services is centralized in the Config Service. The configuration files are stored in:
-```
-config-service/src/main/resources/config
-```
-
-Each service has its own configuration file named `<service-name>.yml`. Common configuration is defined in `application.yml`.
-
-## Security
-
-The system uses OAuth 2.0 with JWT for authentication and authorization. The Auth Service is responsible for issuing and validating JWT tokens.
-
-User roles:
-- **ADMIN**: System administrators with full access
-- **TENDEREE**: Government officials who create and manage tenders
-- **EVALUATOR**: Officials who evaluate bids
-- **COMMITTEE**: Evaluation committee members who review and approve evaluations
-- **TENDERER**: Organizations that submit bids
-
-## Paper-Aligned Security Features
-
-The following features are implemented based on the Fong & Yan paper on "Design of a Web-based Tendering System for e-Government Procurement":
-
-### 1. Sealed Bidding (Bid Sealing/Encryption)
-Bids are cryptographically sealed upon submission using AES-256-GCM encryption with SHA-256 integrity hashing. Sealed bids cannot be viewed by anyone (including administrators) until the tender's submission deadline passes. The system supports:
-- Automatic sealing on bid submission
-- Scheduled unsealing after the tender deadline
-- Manual bid opening ceremony (unseal all bids for a tender)
-- Tamper detection via integrity hash verification
-- **API**: `POST /api/v1/bids/{bidId}/seal`, `POST /api/v1/bids/tender/{tenderId}/unseal-all`
-
-### 2. Digital Signatures (Non-Repudiation)
-All bids and contracts can be digitally signed using SHA256withRSA signatures. This provides non-repudiation, ensuring that bidders cannot deny having submitted a bid and contract parties cannot deny agreement. The system supports:
-- Entity signing (bids, contracts)
-- Signature verification and rejection
-- Content hash comparison to detect post-signing modifications
-- **API**: `POST /api/v1/signatures/{entityType}/{entityId}/sign`, `POST /api/v1/signatures/{signatureId}/verify`
-
-### 3. Anti-Collusion Measures
-The system tracks bid submission metadata (IP address, device fingerprint, user agent, timing) and provides automated collusion detection analysis:
-- **Same IP detection**: Flags bids from different tenderers submitted from the same IP
-- **Same device detection**: Flags bids from different tenderers using the same device
-- **Pricing pattern analysis**: Detects suspiciously similar bid prices (within 2% threshold)
-- **Timing anomaly detection**: Flags bids submitted within 60 seconds of each other
-- **API**: `GET /api/v1/anti-collusion/tender/{tenderId}/analyze`
-
-### 4. Tender Amendment Workflow
-Published tenders can be amended with full audit trail. Amendments are versioned, track the previous and new values, and trigger Kafka events to notify all registered bidders:
-- Amendment numbering and history
-- Deadline extension support
-- Mandatory notification to all bidders via Kafka events
-- **API**: `POST /api/tenders/{tenderId}/amend`, `GET /api/tenders/{tenderId}/amendments`
-
-### 5. Vendor Pre-Qualification
-Vendors must be pre-qualified before participating in tenders. The qualification process validates business licenses, tax registration, financial capability, experience, and certifications:
-- Multi-category qualification support
-- Qualification scoring (0-100)
-- Time-limited qualifications with automatic expiry
-- Status workflow: PENDING -> UNDER_REVIEW -> QUALIFIED/DISQUALIFIED
-- **API**: `POST /api/vendor-qualifications`, `PUT /api/vendor-qualifications/{id}/review`
-
-### 6. Multi-Criteria Evaluation Scoring
-Bid evaluation uses a configurable weighted scoring model with category-level breakdown:
-- **Score categories**: Technical, Financial, Compliance, Experience, Quality
-- Configurable weights per category (must sum to 100%)
-- Mandatory pass thresholds per category
-- Category-level pass/fail determination
-- Overall qualification assessment
-- **API**: `POST /api/multi-criteria/tenders/{tenderId}/categories`, `GET /api/multi-criteria/tenders/{tenderId}/results`
+| # | Feature | Implementation |
+|---|---------|---------------|
+| 1 | **Sealed Bidding** | AES-256-GCM encryption + SHA-256 hashing; bids unsealed only after deadline |
+| 2 | **Digital Signatures** | SHA256withRSA for non-repudiation of bids and contracts |
+| 3 | **Anti-Collusion** | IP/device/pricing/timing analysis with automated flagging |
+| 4 | **Vendor Pre-Qualification** | Scored qualification with time-limited validity and auto-expiry |
+| 5 | **Organization Blacklist** | Debarment/suspension management with automatic expiry |
+| 6 | **Multi-Criteria Evaluation** | Technical/Financial/Compliance/Quality weighted scoring |
+| 7 | **Conflict of Interest** | Mandatory evaluator declarations with review workflow |
+| 8 | **Tender Amendments** | Versioned amendments with Kafka notification to all bidders |
+| 9 | **Two-Envelope Bidding** | Separate technical and financial envelopes with independent sealing |
+| 10 | **Pre-Bid Clarifications** | Public Q&A between vendors and tenderee for transparency |
+| 11 | **Contract Amendments** | Formal amendment requests with approval workflow |
+| 12 | **Vendor Performance** | Post-award scorecards (quality, timeliness, compliance, communication) |
+| 13 | **Procurement Reporting** | Audit-based summaries with date-range filtering |
 
 ## Event-Driven Architecture
 
-The system uses Kafka for event-driven communication between services. Key events include:
-- Tender created/updated/published/amended
-- Bid submitted/updated/withdrawn/sealed/unsealed
-- Contract awarded/signed
-- Document uploaded/verified
-- Evaluation completed with multi-criteria breakdown
-- Notification events
+| Kafka Topic | Producer | Consumers |
+|-------------|----------|-----------|
+| `tender-events` | Tender Service | Bidding, Audit, Notification |
+| `bid-events` | Bidding Service | Evaluation, Contract, Audit, Notification |
+| `evaluation-events` | Evaluation Service | Bidding, Contract, Audit |
+| `contract-events` | Contract Service | Bidding, Audit, Notification |
+| `user-events` | User Service | Notification, Audit |
+| `notification-events` | Notification Service | Audit |
 
-## Database Schema
-
-Each service manages its own database schema. The database migrations are handled using Flyway and are located in:
-```
-<service-name>/src/main/resources/db/migration
-```
-
-## Monitoring and Observability
-
-The system exposes metrics via Spring Boot Actuator and can be integrated with:
-- Prometheus for metrics collection
-- Grafana for dashboards
-- ELK Stack for log aggregation
-
-## Deployment
-
-### Docker Deployment // we will include this part in the feature
-
-The `docker-compose.yml` file in the root directory can be used for local deployment. For production deployment, consider using Kubernetes.
-
-### Kubernetes Deployment // we will include this part in the feature
-
-Kubernetes manifests are provided in the `k8s/` directory for deploying the system on a Kubernetes cluster.
-
-## Implementation Phases
-
-For a detailed breakdown of all 16 implementation phases aligned with the Fong & Yan paper, see [docs/IMPLEMENTATION_PHASES.md](docs/IMPLEMENTATION_PHASES.md).
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Tendering Workflow (End-to-End)
+## Tendering Workflow
 
 ```
 1. Vendor Registration & Pre-Qualification
-   └─ Vendor registers → Submits qualification → Reviewed & approved
+   └─ Register → Submit qualification → Review & approve
+   └─ Blacklisted organizations prevented from bidding
 
 2. Tender Creation & Publication
-   └─ Tenderee creates DRAFT tender → Configures evaluation categories → Publishes tender
-   └─ Tender can be AMENDED after publication (notifies all bidders)
+   └─ Create DRAFT → Configure criteria & categories → Publish
+   └─ Amend after publication (notifies all bidders)
+   └─ Pre-bid Q&A: Vendors ask, tenderee answers publicly
 
-3. Bid Submission (Sealed)
-   └─ Tenderer creates DRAFT bid → Submits bid → Bid is SEALED (encrypted)
-   └─ Anti-collusion metadata is recorded (IP, device, timing)
+3. Bid Submission (Sealed, Two-Envelope)
+   └─ Create DRAFT → Add items per criteria → Upload documents
+   └─ Submit → Bid SEALED (AES-256-GCM) → Envelopes separated
+   └─ Anti-collusion metadata recorded (IP, device, timing)
 
 4. Bid Opening Ceremony
-   └─ After submission deadline → All sealed bids are UNSEALED → Integrity verified
+   └─ After deadline → All bids UNSEALED → Integrity verified
+   └─ Tamper detection flags modified bids
 
 5. Bid Evaluation (Multi-Criteria)
-   └─ Evaluators score bids per criteria → Category breakdown computed
-   └─ Technical/Financial/Compliance scores calculated → Rankings generated
+   └─ Evaluators declare conflicts of interest
+   └─ Score per criteria → Weighted category scores → Rankings
+   └─ Digital signatures applied for non-repudiation
 
 6. Committee Review & Award
-   └─ Committee reviews evaluation → Approves results → Contract awarded
-   └─ Digital signatures applied to bids and contracts
+   └─ Committee reviews → Approves/rejects
+   └─ Contract awarded based on allocation strategy
 
-7. Contract Management
-   └─ Contract created → Milestones tracked → Contract lifecycle managed
+7. Contract Management & Performance
+   └─ Contract created → Milestones tracked → Amendments managed
+   └─ Vendor performance scored per review period
 
 8. Full Audit Trail
-   └─ Every action across all services is captured in the audit service
+   └─ Every action captured → Procurement reports generated
 ```
+
+## Database
+
+8 databases auto-created on startup via Flyway migrations:
+
+| Database | Key Tables |
+|----------|-----------|
+| `user_service` | users, organizations, vendor_qualifications, organization_blacklist |
+| `tender_service` | tenders, tender_criteria, tender_items, tender_amendments, pre_bid_clarifications |
+| `bidding_service` | bids, bid_seals, digital_signatures, bid_submission_metadata, bid_envelopes |
+| `evaluation_service` | evaluations, criteria_scores, evaluation_category_configs, conflict_of_interest_declarations |
+| `contract_service` | contracts, contract_milestones, contract_amendments, vendor_performances |
+| `document_service` | documents |
+| `notification_service` | notifications, notification_audit |
+| `audit_service` | audit_logs |
+
+## Testing
+
+8 test files across 4 core services (~80 tests):
+
+```bash
+mvn test    # Run all tests
+```
+
+| Service | Tests |
+|---------|-------|
+| user-service | UserServiceImpl, VendorQualificationServiceImpl |
+| tender-service | TenderServiceImpl, TenderController |
+| bidding-service | BidSealingServiceImpl, AntiCollusionServiceImpl |
+| evaluation-service | EvaluationServiceImpl, MultiCriteriaEvaluationServiceImpl |
+
+## Technical Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | Java 17, Spring Boot 3.2.2, Spring Cloud 2023.0.0 |
+| **Frontend** | React 19, TypeScript, Vite, Ant Design, Zustand |
+| **Database** | MySQL 8.0 (per-service), Flyway migrations |
+| **Messaging** | Apache Kafka (event-driven communication) |
+| **Caching** | Redis (gateway rate limiting) |
+| **Security** | JWT (HS512), AES-256-GCM, SHA256withRSA |
+| **Discovery** | Netflix Eureka |
+| **Gateway** | Spring Cloud Gateway + Resilience4j |
+| **CI/CD** | GitHub Actions |
+| **Containers** | Docker, Docker Compose |
+| **Monitoring** | Spring Boot Actuator, Prometheus |
+
+## Implementation Phases
+
+See [docs/IMPLEMENTATION_PHASES.md](docs/IMPLEMENTATION_PHASES.md) for the full 16-phase roadmap.
 
 ## Acknowledgments
 
-- Based on research by Simon Fong and Zhuang Yan on "Design of a Web-based Tendering System for e-Government Procurement"
-- Implements sealed bidding, digital signatures, anti-collusion, vendor pre-qualification, tender amendments, and multi-criteria evaluation as recommended by the paper
-- Inspired by best practices in e-Government systems worldwide
+- Based on: Fong, S. & Yan, Z. (2009). "Design of a Web-based Tendering System for e-Government Procurement." ICEGOV 2009.
+- Inspired by OECD Digital Government and World Bank procurement frameworks.
 
 ## Contact
 
-For questions or support, please contact me through my GitHub: [https://github.com/GezahegnTsegaye/e-government-tendering-system](https://github.com/GezahegnTsegaye/e-government-tendering-system)
+Gezahegn Tsegaye — [GitHub](https://github.com/GezahegnTsegaye/e-government-tendering-system)
