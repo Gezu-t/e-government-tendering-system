@@ -118,13 +118,20 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <skip>${docker.skip}</skip>
                     <image>
                         <name>${project.groupId}/audit.service:${project.version}</name>
                     </image>
                 </configuration>
                 <executions>
                     <execution>
+                        <id>repackage</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>build-image</id>
+                        <configuration><skip>${docker.skip}</skip></configuration>
                         <phase>install</phase>
                         <goals>
                             <goal>build-image</goal>

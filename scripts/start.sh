@@ -271,14 +271,21 @@ start_service() {
   echo "$pid" > "$pid_file"
 
   # Wait for startup
-  local retries=40
+  local retries=60
   while [ $retries -gt 0 ]; do
+    # Check if process died (bad JAR, missing class, etc.)
+    if ! kill -0 "$pid" 2>/dev/null; then
+      log_error "$name failed to start. Check logs: $log_file"
+      tail -3 "$log_file" 2>/dev/null
+      rm -f "$pid_file"
+      return 1
+    fi
     if curl -s "http://localhost:$port/actuator/health" &>/dev/null; then
       log_ok "$name started (PID: $pid, Port: $port)"
       return 0
     fi
     retries=$((retries - 1))
-    sleep 3
+    sleep 2
   done
 
   log_warn "$name may still be starting (PID: $pid). Check logs: $log_file"
