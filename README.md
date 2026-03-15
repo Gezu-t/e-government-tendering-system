@@ -156,18 +156,70 @@ The system uses OAuth 2.0 with JWT for authentication and authorization. The Aut
 
 User roles:
 - **ADMIN**: System administrators with full access
-- **PROCUREMENT_OFFICER**: Government officials who create and manage tenders
-- **EVALUATION_COMMITTEE**: Officials who evaluate bids
-- **VENDOR**: Organizations that submit bids
-- **AUDITOR**: Users who can view all activities but not modify anything
+- **TENDEREE**: Government officials who create and manage tenders
+- **EVALUATOR**: Officials who evaluate bids
+- **COMMITTEE**: Evaluation committee members who review and approve evaluations
+- **TENDERER**: Organizations that submit bids
+
+## Paper-Aligned Security Features
+
+The following features are implemented based on the Fong & Yan paper on "Design of a Web-based Tendering System for e-Government Procurement":
+
+### 1. Sealed Bidding (Bid Sealing/Encryption)
+Bids are cryptographically sealed upon submission using AES-256-GCM encryption with SHA-256 integrity hashing. Sealed bids cannot be viewed by anyone (including administrators) until the tender's submission deadline passes. The system supports:
+- Automatic sealing on bid submission
+- Scheduled unsealing after the tender deadline
+- Manual bid opening ceremony (unseal all bids for a tender)
+- Tamper detection via integrity hash verification
+- **API**: `POST /api/v1/bids/{bidId}/seal`, `POST /api/v1/bids/tender/{tenderId}/unseal-all`
+
+### 2. Digital Signatures (Non-Repudiation)
+All bids and contracts can be digitally signed using SHA256withRSA signatures. This provides non-repudiation, ensuring that bidders cannot deny having submitted a bid and contract parties cannot deny agreement. The system supports:
+- Entity signing (bids, contracts)
+- Signature verification and rejection
+- Content hash comparison to detect post-signing modifications
+- **API**: `POST /api/v1/signatures/{entityType}/{entityId}/sign`, `POST /api/v1/signatures/{signatureId}/verify`
+
+### 3. Anti-Collusion Measures
+The system tracks bid submission metadata (IP address, device fingerprint, user agent, timing) and provides automated collusion detection analysis:
+- **Same IP detection**: Flags bids from different tenderers submitted from the same IP
+- **Same device detection**: Flags bids from different tenderers using the same device
+- **Pricing pattern analysis**: Detects suspiciously similar bid prices (within 2% threshold)
+- **Timing anomaly detection**: Flags bids submitted within 60 seconds of each other
+- **API**: `GET /api/v1/anti-collusion/tender/{tenderId}/analyze`
+
+### 4. Tender Amendment Workflow
+Published tenders can be amended with full audit trail. Amendments are versioned, track the previous and new values, and trigger Kafka events to notify all registered bidders:
+- Amendment numbering and history
+- Deadline extension support
+- Mandatory notification to all bidders via Kafka events
+- **API**: `POST /api/tenders/{tenderId}/amend`, `GET /api/tenders/{tenderId}/amendments`
+
+### 5. Vendor Pre-Qualification
+Vendors must be pre-qualified before participating in tenders. The qualification process validates business licenses, tax registration, financial capability, experience, and certifications:
+- Multi-category qualification support
+- Qualification scoring (0-100)
+- Time-limited qualifications with automatic expiry
+- Status workflow: PENDING -> UNDER_REVIEW -> QUALIFIED/DISQUALIFIED
+- **API**: `POST /api/vendor-qualifications`, `PUT /api/vendor-qualifications/{id}/review`
+
+### 6. Multi-Criteria Evaluation Scoring
+Bid evaluation uses a configurable weighted scoring model with category-level breakdown:
+- **Score categories**: Technical, Financial, Compliance, Experience, Quality
+- Configurable weights per category (must sum to 100%)
+- Mandatory pass thresholds per category
+- Category-level pass/fail determination
+- Overall qualification assessment
+- **API**: `POST /api/multi-criteria/tenders/{tenderId}/categories`, `GET /api/multi-criteria/tenders/{tenderId}/results`
 
 ## Event-Driven Architecture
 
 The system uses Kafka for event-driven communication between services. Key events include:
-- Tender created/updated/published
-- Bid submitted/updated/withdrawn
+- Tender created/updated/published/amended
+- Bid submitted/updated/withdrawn/sealed/unsealed
 - Contract awarded/signed
 - Document uploaded/verified
+- Evaluation completed with multi-criteria breakdown
 - Notification events
 
 ## Database Schema
@@ -194,6 +246,10 @@ The `docker-compose.yml` file in the root directory can be used for local deploy
 
 Kubernetes manifests are provided in the `k8s/` directory for deploying the system on a Kubernetes cluster.
 
+## Implementation Phases
+
+For a detailed breakdown of all 16 implementation phases aligned with the Fong & Yan paper, see [docs/IMPLEMENTATION_PHASES.md](docs/IMPLEMENTATION_PHASES.md).
+
 ## Contributing
 
 1. Fork the repository
@@ -206,9 +262,42 @@ Kubernetes manifests are provided in the `k8s/` directory for deploying the syst
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## Tendering Workflow (End-to-End)
+
+```
+1. Vendor Registration & Pre-Qualification
+   └─ Vendor registers → Submits qualification → Reviewed & approved
+
+2. Tender Creation & Publication
+   └─ Tenderee creates DRAFT tender → Configures evaluation categories → Publishes tender
+   └─ Tender can be AMENDED after publication (notifies all bidders)
+
+3. Bid Submission (Sealed)
+   └─ Tenderer creates DRAFT bid → Submits bid → Bid is SEALED (encrypted)
+   └─ Anti-collusion metadata is recorded (IP, device, timing)
+
+4. Bid Opening Ceremony
+   └─ After submission deadline → All sealed bids are UNSEALED → Integrity verified
+
+5. Bid Evaluation (Multi-Criteria)
+   └─ Evaluators score bids per criteria → Category breakdown computed
+   └─ Technical/Financial/Compliance scores calculated → Rankings generated
+
+6. Committee Review & Award
+   └─ Committee reviews evaluation → Approves results → Contract awarded
+   └─ Digital signatures applied to bids and contracts
+
+7. Contract Management
+   └─ Contract created → Milestones tracked → Contract lifecycle managed
+
+8. Full Audit Trail
+   └─ Every action across all services is captured in the audit service
+```
+
 ## Acknowledgments
 
 - Based on research by Simon Fong and Zhuang Yan on "Design of a Web-based Tendering System for e-Government Procurement"
+- Implements sealed bidding, digital signatures, anti-collusion, vendor pre-qualification, tender amendments, and multi-criteria evaluation as recommended by the paper
 - Inspired by best practices in e-Government systems worldwide
 
 ## Contact

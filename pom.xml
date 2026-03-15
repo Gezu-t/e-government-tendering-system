@@ -74,7 +74,7 @@
         <twilio.version>9.0.0</twilio.version>
 
         <!-- Docker Configuration -->
-        <docker.skip>false</docker.skip>
+        <docker.skip>true</docker.skip>
         <docker.image.prefix>egov</docker.image.prefix>
         <docker.image.name>${docker.image.prefix}/${project.artifactId}</docker.image.name>
         <docker.image.tag>${project.version}</docker.image.tag>

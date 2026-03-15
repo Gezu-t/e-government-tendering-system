@@ -203,3 +203,10 @@ modules.xml
 .history
 .ionide
 .project
+
+### E-Gov Tendering Runtime ###
+.pids/
+logs/
+uploads/
+frontend/node_modules/
+frontend/dist/

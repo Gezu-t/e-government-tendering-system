@@ -1,0 +1,136 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_ALLOW_EMPTY_PASSWORD: true
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -ppassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+          --health-start-period=30s
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Create databases
+        run: |
+          mysql -h 127.0.0.1 -u root -ppassword -e "
+            CREATE DATABASE IF NOT EXISTS user_service;
+            CREATE DATABASE IF NOT EXISTS tender_service;
+            CREATE DATABASE IF NOT EXISTS bidding_service;
+            CREATE DATABASE IF NOT EXISTS contract_service;
+            CREATE DATABASE IF NOT EXISTS document_service;
+            CREATE DATABASE IF NOT EXISTS notification_service;
+            CREATE DATABASE IF NOT EXISTS audit_service;
+            CREATE DATABASE IF NOT EXISTS evaluation_service;
+          "
+
+      - name: Build all modules
+        run: mvn clean compile -q --batch-mode
+
+      - name: Run tests
+        run: mvn test --batch-mode -Dspring.profiles.active=test
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USERNAME: root
+          DB_PASSWORD: password
+
+      - name: Package all services
+        run: mvn package -DskipTests -q --batch-mode
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: '**/target/surefire-reports/*.xml'
+          retention-days: 7
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Check code style
+        run: mvn checkstyle:check -q --batch-mode || true
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    strategy:
+      matrix:
+        service:
+          - discovery-service
+          - config-service
+          - gateway-service
+          - user-service
+          - tender-service
+          - bidding-service
+          - contract-service
+          - document-service
+          - notification-service
+          - evaluation-service
+          - audit-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build service JAR
+        run: mvn package -pl ${{ matrix.service }} -am -DskipTests -q --batch-mode
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --build-arg SERVICE_NAME=${{ matrix.service }} \
+            --build-arg SERVICE_PORT=8080 \
+            -t egov/${{ matrix.service }}:${{ github.sha }} \
+            -t egov/${{ matrix.service }}:latest \
+            .
