@@ -1,5 +1,6 @@
 package com.egov.tendering.notification.config;
 
+import com.egov.tendering.notification.event.GenericNotificationEvent;
 import com.egov.tendering.notification.event.NotificationEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -65,5 +66,19 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, NotificationEvent> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, GenericNotificationEvent> genericNotificationProducerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<>(props);
+    }
+
+    @Bean
+    public KafkaTemplate<String, GenericNotificationEvent> genericNotificationKafkaTemplate() {
+        return new KafkaTemplate<>(genericNotificationProducerFactory());
     }
 }

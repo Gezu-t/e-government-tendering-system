@@ -59,6 +59,11 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step()  { echo -e "\n${CYAN}========================================${NC}"; echo -e "${CYAN}  $1${NC}"; echo -e "${CYAN}========================================${NC}"; }
 
+port_pid() {
+  local port=$1
+  lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -1
+}
+
 # ============================================================
 # Prerequisites Check
 # ============================================================
@@ -228,6 +233,14 @@ start_service() {
   # Check if already running
   if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
     log_warn "$name already running (PID: $(cat "$pid_file"))"
+    return 0
+  fi
+
+  local existing_port_pid
+  existing_port_pid=$(port_pid "$port" || true)
+  if [ -n "$existing_port_pid" ]; then
+    log_warn "$name port $port already in use (PID: $existing_port_pid); skipping duplicate start"
+    echo "$existing_port_pid" > "$pid_file"
     return 0
   fi
 
@@ -422,6 +435,8 @@ show_status() {
     local pid_file="$PROJECT_ROOT/.pids/${name}.pid"
     local status="${RED}STOPPED${NC}"
     local pid="-"
+    local port_listener_pid
+    port_listener_pid=$(port_pid "$port" || true)
 
     if [ -f "$pid_file" ]; then
       pid=$(cat "$pid_file")
@@ -432,7 +447,23 @@ show_status() {
           status="${YELLOW}STARTING${NC}"
         fi
       else
-        status="${RED}DEAD${NC}"
+        if [ -n "$port_listener_pid" ]; then
+          pid="$port_listener_pid"
+          if curl -s "http://localhost:$port/actuator/health" &>/dev/null; then
+            status="${GREEN}RUNNING${NC}"
+          else
+            status="${YELLOW}LISTENING${NC}"
+          fi
+        else
+          status="${RED}DEAD${NC}"
+        fi
+      fi
+    elif [ -n "$port_listener_pid" ]; then
+      pid="$port_listener_pid"
+      if curl -s "http://localhost:$port/actuator/health" &>/dev/null; then
+        status="${GREEN}RUNNING${NC}"
+      else
+        status="${YELLOW}LISTENING${NC}"
       fi
     fi
 

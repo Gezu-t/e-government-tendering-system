@@ -23,7 +23,7 @@ public class NotificationEventPublisher {
     private final KafkaTemplate<String, NotificationEvent> kafkaTemplate;
     private final AtomicLong eventIdCounter = new AtomicLong(1);
 
-    @Value("${app.kafka.topics.notification-events}")
+    @Value("${app.kafka.topics.notification-events:${kafka.topics.notification-events:notification-events}}")
     private String notificationEventsTopic;
 
     public void publishEmailSentEvent(Notification notification) {
