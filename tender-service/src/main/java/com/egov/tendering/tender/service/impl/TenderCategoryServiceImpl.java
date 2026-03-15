@@ -1,17 +1,15 @@
 package com.egov.tendering.tender.service.impl;
 
-
-import com.egov.tendering.tender.dal.dto.TenderCriteriaDTO;
+import com.egov.tendering.tender.dal.dto.TenderCategoryDTO;
 import com.egov.tendering.tender.dal.mapper.TenderCategoryMapper;
 import com.egov.tendering.tender.dal.model.TenderCategory;
 import com.egov.tendering.tender.dal.repository.TenderCategoryRepository;
+import com.egov.tendering.tender.exception.EntityNotFoundException;
 import com.egov.tendering.tender.service.TenderCategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -21,29 +19,29 @@ public class TenderCategoryServiceImpl implements TenderCategoryService {
     private final TenderCategoryMapper tenderCategoryMapper;
 
     @Override
-    public TenderCriteriaDTO createCategory(TenderCriteriaDTO categoryDTO) {
+    public TenderCategoryDTO createCategory(TenderCategoryDTO categoryDTO) {
         TenderCategory category = tenderCategoryMapper.toEntity(categoryDTO);
         category = tenderCategoryRepository.save(category);
         return tenderCategoryMapper.toDTO(category);
     }
 
     @Override
-    public TenderCriteriaDTO getCategoryById(Long id) {
-        Optional<TenderCategory> category = tenderCategoryRepository.findById(id);
-        return category.map(tenderCategoryMapper::toDTO).orElse(null);
+    public TenderCategoryDTO getCategoryById(Long id) {
+        TenderCategory category = tenderCategoryRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Tender category not found with ID: " + id));
+        return tenderCategoryMapper.toDTO(category);
     }
 
     @Override
-    public List<TenderCriteriaDTO> getAllCategories() {
+    public List<TenderCategoryDTO> getAllCategories() {
         List<TenderCategory> categories = tenderCategoryRepository.findAll();
         return tenderCategoryMapper.toDtoList(categories);
     }
 
     @Override
-    public TenderCriteriaDTO updateCategory(Long id, TenderCriteriaDTO categoryDTO) {
-        if (!tenderCategoryRepository.existsById(id)) {
-            return null;
-        }
+    public TenderCategoryDTO updateCategory(Long id, TenderCategoryDTO categoryDTO) {
+        tenderCategoryRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Tender category not found with ID: " + id));
 
         TenderCategory category = tenderCategoryMapper.toEntity(categoryDTO);
         category.setId(id);
@@ -57,7 +55,7 @@ public class TenderCategoryServiceImpl implements TenderCategoryService {
     }
 
     @Override
-    public List<TenderCriteriaDTO> findActiveCategories() {
+    public List<TenderCategoryDTO> findActiveCategories() {
         List<TenderCategory> categories = tenderCategoryRepository.findByActiveTrue();
         return tenderCategoryMapper.toDtoList(categories);
     }

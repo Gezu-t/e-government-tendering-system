@@ -1,6 +1,7 @@
 package com.egov.tendering.tender.event;
 
 import com.egov.tendering.tender.dal.model.Tender;
+import com.egov.tendering.tender.dal.model.TenderAmendment;
 import com.egov.tendering.tender.dal.model.TenderStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -83,6 +84,24 @@ public class TenderEventPublisher {
                 .build();
 
         log.info("Publishing tender closed event: {}", event);
+        kafkaTemplate.send(tenderEventsTopic, tender.getId().toString(), event);
+    }
+
+    public void publishTenderAmendedEvent(Tender tender, TenderAmendment amendment) {
+        TenderAmendedEvent event = TenderAmendedEvent.builder()
+                .eventId(generateEventId())
+                .eventType("TENDER_AMENDED")
+                .timestamp(LocalDateTime.now())
+                .tenderId(tender.getId())
+                .tenderTitle(tender.getTitle())
+                .amendmentNumber(amendment.getAmendmentNumber())
+                .reason(amendment.getReason())
+                .previousDeadline(amendment.getPreviousDeadline())
+                .newDeadline(amendment.getNewDeadline())
+                .amendedBy(amendment.getAmendedBy())
+                .build();
+
+        log.info("Publishing tender amended event: {}", event);
         kafkaTemplate.send(tenderEventsTopic, tender.getId().toString(), event);
     }
 

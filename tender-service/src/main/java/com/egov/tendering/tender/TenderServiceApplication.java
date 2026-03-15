@@ -11,7 +11,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class TenderServiceApplication {
   public static void main(String[] args) {
-    System.setProperty("spring.profiles.active", "dev");
     SpringApplication.run(TenderServiceApplication.class, args);
   }
 }

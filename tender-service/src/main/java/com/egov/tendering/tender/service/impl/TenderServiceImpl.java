@@ -1,11 +1,10 @@
 package com.egov.tendering.tender.service.impl;
 
 
-import com.egov.tendering.tender.dal.dto.CreateTenderRequest;
-import com.egov.tendering.tender.dal.dto.TenderDTO;
-import com.egov.tendering.tender.dal.dto.UpdateTenderStatusRequest;
+import com.egov.tendering.tender.dal.dto.*;
 import com.egov.tendering.tender.dal.mapper.TenderMapper;
 import com.egov.tendering.tender.dal.model.*;
+import com.egov.tendering.tender.dal.repository.TenderAmendmentRepository;
 import com.egov.tendering.tender.dal.repository.TenderCriteriaRepository;
 import com.egov.tendering.tender.dal.repository.TenderItemRepository;
 import com.egov.tendering.tender.dal.repository.TenderRepository;
@@ -22,7 +21,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,9 +31,19 @@ import java.util.stream.Collectors;
 @Slf4j
 public class TenderServiceImpl implements TenderService {
 
+  private static final Map<TenderStatus, EnumSet<TenderStatus>> ALLOWED_MANUAL_STATUS_TRANSITIONS = Map.of(
+          TenderStatus.DRAFT, EnumSet.of(TenderStatus.CANCELLED),
+          TenderStatus.PUBLISHED, EnumSet.of(TenderStatus.AMENDED, TenderStatus.CANCELLED),
+          TenderStatus.AMENDED, EnumSet.of(TenderStatus.CANCELLED),
+          TenderStatus.CLOSED, EnumSet.of(TenderStatus.EVALUATION_IN_PROGRESS, TenderStatus.CANCELLED),
+          TenderStatus.EVALUATION_IN_PROGRESS, EnumSet.of(TenderStatus.EVALUATED, TenderStatus.CANCELLED),
+          TenderStatus.EVALUATED, EnumSet.of(TenderStatus.AWARDED, TenderStatus.CANCELLED)
+  );
+
   private final TenderRepository tenderRepository;
   private final TenderCriteriaRepository criteriaRepository;
   private final TenderItemRepository itemRepository;
+  private final TenderAmendmentRepository amendmentRepository;
   private final TenderMapper tenderMapper;
   private final TenderEventPublisher eventPublisher;
 
@@ -139,6 +150,7 @@ public class TenderServiceImpl implements TenderService {
             .orElseThrow(() -> new TenderNotFoundException("Tender not found with ID: " + tenderId));
 
     TenderStatus oldStatus = tender.getStatus();
+    validateManualTenderStatusTransition(oldStatus, request.getStatus());
     tender.setStatus(request.getStatus());
     tender = tenderRepository.save(tender);
 
@@ -191,6 +203,71 @@ public class TenderServiceImpl implements TenderService {
   }
 
   @Override
+  @Transactional
+  public TenderDTO amendTender(Long tenderId, TenderAmendmentRequest request, Long amendedBy) {
+    log.info("Amending tender: {} by user: {}", tenderId, amendedBy);
+
+    Tender tender = tenderRepository.findById(tenderId)
+            .orElseThrow(() -> new TenderNotFoundException("Tender not found with ID: " + tenderId));
+
+    if (tender.getStatus() != TenderStatus.PUBLISHED && tender.getStatus() != TenderStatus.AMENDED) {
+      throw new IllegalStateException("Only PUBLISHED or AMENDED tenders can be amended");
+    }
+
+    // Record the amendment
+    Integer nextAmendmentNumber = amendmentRepository.findMaxAmendmentNumber(tenderId) + 1;
+
+    TenderAmendment amendment = TenderAmendment.builder()
+            .tenderId(tenderId)
+            .amendmentNumber(nextAmendmentNumber)
+            .reason(request.getReason())
+            .description(request.getDescription())
+            .previousDeadline(tender.getSubmissionDeadline())
+            .previousDescription(tender.getDescription())
+            .amendedBy(amendedBy)
+            .build();
+
+    // Apply changes
+    if (request.getDescription() != null) {
+      tender.setDescription(request.getDescription());
+    }
+    if (request.getNewSubmissionDeadline() != null) {
+      amendment.setNewDeadline(request.getNewSubmissionDeadline());
+      tender.setSubmissionDeadline(request.getNewSubmissionDeadline());
+    }
+
+    tender.setStatus(TenderStatus.AMENDED);
+    tender = tenderRepository.save(tender);
+    amendmentRepository.save(amendment);
+
+    // Publish amendment event to notify all bidders
+    eventPublisher.publishTenderAmendedEvent(tender, amendment);
+
+    log.info("Tender {} amended successfully. Amendment #{}", tenderId, nextAmendmentNumber);
+    return tenderMapper.toDto(tender);
+  }
+
+  @Override
+  public List<TenderAmendmentDTO> getTenderAmendments(Long tenderId) {
+    log.info("Retrieving amendments for tender: {}", tenderId);
+
+    return amendmentRepository.findByTenderIdOrderByAmendmentNumberDesc(tenderId)
+            .stream()
+            .map(a -> TenderAmendmentDTO.builder()
+                    .id(a.getId())
+                    .tenderId(a.getTenderId())
+                    .amendmentNumber(a.getAmendmentNumber())
+                    .reason(a.getReason())
+                    .description(a.getDescription())
+                    .previousDeadline(a.getPreviousDeadline())
+                    .newDeadline(a.getNewDeadline())
+                    .amendedBy(a.getAmendedBy())
+                    .createdAt(a.getCreatedAt())
+                    .build())
+            .collect(Collectors.toList());
+  }
+
+  @Override
   @Scheduled(cron = "0 0 * * * *") // Run every hour
   @Transactional
   public void checkForExpiredTenders() {
@@ -209,5 +286,17 @@ public class TenderServiceImpl implements TenderService {
     }
 
     log.info("Closed {} expired tenders", expiredTenders.size());
+  }
+
+  private void validateManualTenderStatusTransition(TenderStatus currentStatus, TenderStatus newStatus) {
+    if (currentStatus == newStatus) {
+      return;
+    }
+
+    EnumSet<TenderStatus> allowedTargets = ALLOWED_MANUAL_STATUS_TRANSITIONS.get(currentStatus);
+    if (allowedTargets == null || !allowedTargets.contains(newStatus)) {
+      throw new IllegalStateException(
+              "Manual tender status transition from " + currentStatus + " to " + newStatus + " is not allowed");
+    }
   }
 }

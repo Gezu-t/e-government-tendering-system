@@ -1,24 +1,17 @@
 package com.egov.tendering.tender.dal.mapper;
 
-
-import com.egov.tendering.tender.dal.dto.TenderCriteriaDTO;
+import com.egov.tendering.tender.dal.dto.TenderCategoryDTO;
 import com.egov.tendering.tender.dal.model.TenderCategory;
 import org.mapstruct.Mapper;
-
-import java.util.List;
-
-;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 
 import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface TenderCategoryMapper {
 
-  TenderCriteriaDTO toDTO(TenderCategory tenderCategory);
+  TenderCategoryDTO toDTO(TenderCategory tenderCategory);
 
-  TenderCategory toEntity(TenderCriteriaDTO tenderCriteriaDTO);
+  TenderCategory toEntity(TenderCategoryDTO tenderCategoryDTO);
 
-  List<TenderCriteriaDTO> toDtoList(List<TenderCategory> tenderCategories);
+  List<TenderCategoryDTO> toDtoList(List<TenderCategory> tenderCategories);
 }

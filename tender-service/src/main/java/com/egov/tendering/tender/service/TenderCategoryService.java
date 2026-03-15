@@ -1,21 +1,20 @@
 package com.egov.tendering.tender.service;
 
-import com.egov.tendering.tender.dal.dto.TenderCriteriaDTO;
-import com.egov.tendering.tender.dal.model.TenderCategory;
+import com.egov.tendering.tender.dal.dto.TenderCategoryDTO;
 
 import java.util.List;
 
 public interface TenderCategoryService {
 
-  TenderCriteriaDTO createCategory(TenderCriteriaDTO categoryDTO);
+  TenderCategoryDTO createCategory(TenderCategoryDTO categoryDTO);
 
-  TenderCriteriaDTO getCategoryById(Long id);
+  TenderCategoryDTO getCategoryById(Long id);
 
-  List<TenderCriteriaDTO> getAllCategories();
+  List<TenderCategoryDTO> getAllCategories();
 
-  TenderCriteriaDTO updateCategory(Long id, TenderCriteriaDTO categoryDTO);
+  TenderCategoryDTO updateCategory(Long id, TenderCategoryDTO categoryDTO);
 
   void deleteCategory(Long id);
 
-  List<TenderCriteriaDTO> findActiveCategories();
+  List<TenderCategoryDTO> findActiveCategories();
 }

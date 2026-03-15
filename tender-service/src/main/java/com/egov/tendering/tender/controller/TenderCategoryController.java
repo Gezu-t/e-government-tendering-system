@@ -1,11 +1,12 @@
 package com.egov.tendering.tender.controller;
 
-import com.egov.tendering.tender.dal.dto.TenderCriteriaDTO;
+import com.egov.tendering.tender.dal.dto.TenderCategoryDTO;
 import com.egov.tendering.tender.service.TenderCategoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,47 +21,44 @@ public class TenderCategoryController  {
 
 
   @GetMapping
-  public ResponseEntity<List<TenderCriteriaDTO>> getAllTenderCategories() {
+  @PreAuthorize("isAuthenticated()")
+  public ResponseEntity<List<TenderCategoryDTO>> getAllTenderCategories() {
     log.info("Fetching all tender categories");
-    List<TenderCriteriaDTO> categories = tenderCategoryService.getAllCategories();
+    List<TenderCategoryDTO> categories = tenderCategoryService.getAllCategories();
     return ResponseEntity.ok(categories);
   }
 
 
   @GetMapping("/{id}")
-  public ResponseEntity<TenderCriteriaDTO> getTenderCategoryById(@PathVariable Long id) {
+  @PreAuthorize("isAuthenticated()")
+  public ResponseEntity<TenderCategoryDTO> getTenderCategoryById(@PathVariable Long id) {
     log.info("Fetching tender category with ID: {}", id);
-    TenderCriteriaDTO category = tenderCategoryService.getCategoryById(id);
-    if (category == null) {
-      log.warn("Tender category with ID: {} not found", id);
-      return ResponseEntity.notFound().build();
-    }
+    TenderCategoryDTO category = tenderCategoryService.getCategoryById(id);
     return ResponseEntity.ok(category);
   }
 
 
   @PostMapping
-  public ResponseEntity<TenderCriteriaDTO> createTenderCategory(@RequestBody TenderCriteriaDTO categoryDTO) {
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<TenderCategoryDTO> createTenderCategory(@RequestBody TenderCategoryDTO categoryDTO) {
     log.info("Creating new tender category: {}", categoryDTO.getName());
-    TenderCriteriaDTO createdCategory = tenderCategoryService.createCategory(categoryDTO);
+    TenderCategoryDTO createdCategory = tenderCategoryService.createCategory(categoryDTO);
     return ResponseEntity.status(HttpStatus.CREATED).body(createdCategory);
   }
 
 
   @PutMapping("/{id}")
-  public ResponseEntity<TenderCriteriaDTO> updateTenderCategory(
-          @PathVariable Long id, @RequestBody TenderCriteriaDTO categoryDTO) {
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<TenderCategoryDTO> updateTenderCategory(
+          @PathVariable Long id, @RequestBody TenderCategoryDTO categoryDTO) {
     log.info("Updating tender category with ID: {}", id);
-    TenderCriteriaDTO updatedCategory = tenderCategoryService.updateCategory(id, categoryDTO);
-    if (updatedCategory == null) {
-      log.warn("Tender category with ID: {} not found for update", id);
-      return ResponseEntity.notFound().build();
-    }
+    TenderCategoryDTO updatedCategory = tenderCategoryService.updateCategory(id, categoryDTO);
     return ResponseEntity.ok(updatedCategory);
   }
 
 
   @DeleteMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Void> deleteTenderCategory(@PathVariable Long id) {
     log.info("Deleting tender category with ID: {}", id);
     tenderCategoryService.deleteCategory(id);
@@ -68,9 +66,10 @@ public class TenderCategoryController  {
   }
 
   @GetMapping("/active")
-  public ResponseEntity<List<TenderCriteriaDTO>> getActiveCategories() {
+  @PreAuthorize("isAuthenticated()")
+  public ResponseEntity<List<TenderCategoryDTO>> getActiveCategories() {
     log.info("Fetching all active tender categories");
-    List<TenderCriteriaDTO> activeCategories = tenderCategoryService.findActiveCategories();
+    List<TenderCategoryDTO> activeCategories = tenderCategoryService.findActiveCategories();
     return ResponseEntity.ok(activeCategories);
   }
 }
