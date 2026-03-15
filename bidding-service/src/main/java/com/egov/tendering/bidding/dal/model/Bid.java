@@ -12,7 +12,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "bids")
+@Table(name = "bids", indexes = {
+    @Index(name = "idx_bids_tender_id", columnList = "tender_id"),
+    @Index(name = "idx_bids_tenderer_id", columnList = "tenderer_id"),
+    @Index(name = "idx_bids_tender_status", columnList = "tender_id, status")
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -22,6 +26,9 @@ public class Bid {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
+
+  @Version
+  private Long version;
 
   @Column(name = "tender_id", nullable = false)
   private Long tenderId;

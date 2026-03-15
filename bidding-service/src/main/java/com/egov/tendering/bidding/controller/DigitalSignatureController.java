@@ -59,6 +59,7 @@ public class DigitalSignatureController {
     }
 
     @GetMapping("/{entityType}/{entityId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<DigitalSignatureDTO>> getSignatures(
             @PathVariable String entityType,
             @PathVariable Long entityId) {
@@ -67,6 +68,7 @@ public class DigitalSignatureController {
     }
 
     @GetMapping("/{entityType}/{entityId}/verified")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Boolean> areAllSignaturesVerified(
             @PathVariable String entityType,
             @PathVariable Long entityId) {

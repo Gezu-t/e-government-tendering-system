@@ -3,6 +3,7 @@ package com.egov.tendering.bidding.controller;
 import com.egov.tendering.bidding.dal.dto.BidDTO;
 import com.egov.tendering.bidding.dal.dto.BidVersionDTO;
 import com.egov.tendering.bidding.service.BidVersionService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -44,7 +45,7 @@ public class BidVersionController {
     @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR') or @bidAccessSecurityUtil.isBidOwner(#bidId)")
     public ResponseEntity<BidVersionDTO> createBidVersion(
             @PathVariable Long bidId,
-            @RequestBody BidDTO bidData,
+            @Valid @RequestBody BidDTO bidData,
             @RequestParam String changeSummary,
             @AuthenticationPrincipal Jwt jwt) {
         Long createdBy = getUserId(jwt);

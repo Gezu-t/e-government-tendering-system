@@ -121,6 +121,7 @@ public class BidServiceImpl implements BidService {
                 .orElseThrow(() -> new BidNotFoundException(bidId));
 
         BidStatus oldStatus = bid.getStatus();
+        oldStatus.validateTransitionTo(status);
         bid.setStatus(status);
         bid = bidRepository.save(bid);
 
