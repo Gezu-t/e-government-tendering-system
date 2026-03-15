@@ -7,9 +7,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Utility class for security-related checks in the notification service.
@@ -33,8 +36,7 @@ public class SecurityUtil {
             return false;
         }
 
-        String currentUsername = authentication.getName();
-        return userId.equals(currentUsername);
+        return getCurrentUserIdentifiers(authentication).contains(userId);
     }
 
     /**
@@ -44,13 +46,13 @@ public class SecurityUtil {
      * @param notificationId The ID of the notification to check access for
      * @return true if the current user can access the notification, false otherwise
      */
-    public boolean canAccessNotification(String notificationId) {
+    public boolean canAccessNotification(Long notificationId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null) {
             return false;
         }
 
-        String currentUsername = authentication.getName();
+        Set<String> currentUserIdentifiers = getCurrentUserIdentifiers(authentication);
         Optional<Notification> notificationOpt = notificationRepository.findById(notificationId);
 
         if (notificationOpt.isEmpty()) {
@@ -58,6 +60,25 @@ public class SecurityUtil {
         }
 
         Notification notification = notificationOpt.get();
-        return notification.getRecipients().contains(currentUsername);
+        return notification.getRecipients().stream()
+                .anyMatch(currentUserIdentifiers::contains);
+    }
+
+    private Set<String> getCurrentUserIdentifiers(Authentication authentication) {
+        Set<String> identifiers = new HashSet<>();
+        identifiers.add(authentication.getName());
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof Jwt jwt) {
+            Object userIdClaim = jwt.getClaim("userId");
+            if (userIdClaim != null) {
+                identifiers.add(userIdClaim.toString());
+            }
+            if (jwt.getSubject() != null) {
+                identifiers.add(jwt.getSubject());
+            }
+        }
+
+        return identifiers;
     }
 }

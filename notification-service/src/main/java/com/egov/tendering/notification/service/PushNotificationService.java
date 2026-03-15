@@ -1,6 +1,7 @@
 package com.egov.tendering.notification.service;
 
 import com.egov.tendering.notification.dal.model.Notification;
+import com.egov.tendering.notification.exception.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,7 +39,7 @@ public class PushNotificationService {
                 log.info("Push notification sent to: {}", recipient);
             } catch (Exception e) {
                 log.error("Failed to send push notification to recipient: {}", recipient, e);
-                throw new RuntimeException("Failed to send push notification", e);
+                throw new MessagingException("Failed to send push notification", e);
             }
         }
     }

@@ -42,7 +42,7 @@ public class NotificationEventPublisher {
                     .recipient(recipient)
                     .subject(notification.getSubject())
                     .content(notification.getMessage())
-                    .status(notification.getStatus())
+                    .status(notification.getStatus().name())
                     .build();
 
             sendEventWithErrorHandling(
@@ -67,7 +67,7 @@ public class NotificationEventPublisher {
                     .notificationId(notification.getId())
                     .recipient(recipient)
                     .content(notification.getMessage())
-                    .status(notification.getStatus())
+                    .status(notification.getStatus().name())
                     .build();
 
             sendEventWithErrorHandling(
@@ -93,7 +93,7 @@ public class NotificationEventPublisher {
                     .recipient(recipient)
                     .title(notification.getSubject())
                     .content(notification.getMessage())
-                    .status(notification.getStatus())
+                    .status(notification.getStatus().name())
                     .build();
 
             sendEventWithErrorHandling(

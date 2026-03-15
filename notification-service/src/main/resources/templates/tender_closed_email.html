@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div class="container" style="max-width:600px;margin:0 auto;background:#fff;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+    <div style="background-color:#1a365d;color:#fff;padding:24px 32px;text-align:center;">
+        <h1 style="margin:0;font-size:20px;">E-Government Tendering System</h1>
+        <p style="margin:4px 0 0;font-size:12px;opacity:0.8;">Official Procurement Notification</p>
+    </div>
+    <div style="padding:32px;color:#333;line-height:1.6;">
+        <h2 style="color:#1a365d;font-size:18px;margin-top:0;">Tender Closed</h2>
+        <p>The submission period for the following tender has ended. No further bids will be accepted.</p>
+        <div style="background-color:#fff5f5;border-left:4px solid #e53e3e;padding:16px;margin:16px 0;border-radius:0 4px 4px 0;">
+            <p style="margin:4px 0;font-size:14px;"><span style="color:#c53030;font-weight:600;">Tender ID:</span> <span th:text="${entityId}">T-001</span></p>
+            <p style="margin:4px 0;font-size:14px;"><span style="color:#c53030;font-weight:600;">Subject:</span> <span th:text="${subject}">Tender Subject</span></p>
+            <p style="margin:4px 0;font-size:14px;"><span style="color:#c53030;font-weight:600;">Status:</span> <span style="display:inline-block;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600;background-color:#fed7d7;color:#742a2a;">CLOSED</span></p>
+        </div>
+        <p th:text="${message}">Details about the closure.</p>
+        <p>All submitted bids will now proceed to the sealed bid opening and evaluation phase.</p>
+    </div>
+    <div style="background-color:#f7fafc;padding:20px 32px;text-align:center;font-size:12px;color:#718096;border-top:1px solid #e2e8f0;">
+        <p>This is an automated notification from the E-Government Tendering System.</p>
+        <p>&copy; E-Government Procurement Authority</p>
+    </div>
+</div>
+</body>
+</html>

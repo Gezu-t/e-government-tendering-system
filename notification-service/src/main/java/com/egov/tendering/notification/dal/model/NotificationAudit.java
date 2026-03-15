@@ -6,11 +6,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * Entity to store notification audit records for tracking all notification events
@@ -59,4 +56,3 @@ public class NotificationAudit {
     @Column(nullable = false)
     private LocalDateTime auditTimestamp;
 }
-

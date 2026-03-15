@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base_email :: *}">
+<body>
+<div class="container">
+    <div class="header">
+        <h1>E-Government Tendering System</h1>
+        <p>Official Procurement Notification</p>
+    </div>
+    <div class="content">
+        <h2>New Tender Published</h2>
+        <p>A new tender opportunity has been published and is now open for bid submissions.</p>
+        <div class="info-box">
+            <p><span class="label">Tender ID:</span> <span th:text="${entityId}">T-001</span></p>
+            <p><span class="label">Subject:</span> <span th:text="${subject}">Tender Subject</span></p>
+            <p><span class="label">Status:</span> <span class="status-badge status-published">Published</span></p>
+        </div>
+        <p th:text="${message}">Tender details and description will appear here.</p>
+        <p>Please log in to the procurement portal to view the full tender document, eligibility requirements, and submission guidelines.</p>
+        <p><strong>Important:</strong> Ensure your organization's pre-qualification is up to date before submitting a bid.</p>
+    </div>
+    <div class="footer">
+        <p>This is an automated notification from the E-Government Tendering System.</p>
+        <p>Please do not reply to this email. For inquiries, use the official portal.</p>
+        <p>&copy; E-Government Procurement Authority</p>
+    </div>
+</div>
+</body>
+</html>

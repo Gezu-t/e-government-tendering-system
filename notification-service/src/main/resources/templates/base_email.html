@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f5f7; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .header { background-color: #1a365d; color: #ffffff; padding: 24px 32px; text-align: center; }
+        .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+        .header p { margin: 4px 0 0; font-size: 12px; opacity: 0.8; }
+        .content { padding: 32px; color: #333333; line-height: 1.6; }
+        .content h2 { color: #1a365d; font-size: 18px; margin-top: 0; }
+        .info-box { background-color: #ebf4ff; border-left: 4px solid #3182ce; padding: 16px; margin: 16px 0; border-radius: 0 4px 4px 0; }
+        .info-box p { margin: 4px 0; font-size: 14px; }
+        .info-box .label { color: #2c5282; font-weight: 600; }
+        .btn { display: inline-block; background-color: #3182ce; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 600; margin: 16px 0; }
+        .footer { background-color: #f7fafc; padding: 20px 32px; text-align: center; font-size: 12px; color: #718096; border-top: 1px solid #e2e8f0; }
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+        .status-published { background-color: #c6f6d5; color: #22543d; }
+        .status-closed { background-color: #fed7d7; color: #742a2a; }
+        .status-awarded { background-color: #fefcbf; color: #744210; }
+        .status-amended { background-color: #e9d8fd; color: #44337a; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>E-Government Tendering System</h1>
+        <p>Official Procurement Notification</p>
+    </div>
+    <div class="content" th:fragment="content">
+        <!-- Content will be inserted by child templates -->
+    </div>
+    <div class="footer">
+        <p>This is an automated notification from the E-Government Tendering System.</p>
+        <p>Please do not reply to this email. For inquiries, use the official portal.</p>
+        <p>&copy; E-Government Procurement Authority</p>
+    </div>
+</div>
+</body>
+</html>

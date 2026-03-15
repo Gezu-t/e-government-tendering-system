@@ -1,6 +1,7 @@
 package com.egov.tendering.notification.service;
 
 import com.egov.tendering.notification.dal.model.Notification;
+import com.egov.tendering.notification.dal.model.NotificationStatus;
 import com.egov.tendering.notification.dal.repository.NotificationRepository;
 import com.egov.tendering.notification.event.NotificationEventPublisher;
 
@@ -39,7 +40,7 @@ public class EmailService {
             }
 
             // Update notification status
-            notification.setStatus("DELIVERED");
+            notification.setStatus(NotificationStatus.DELIVERED);
             notification.setDeliveredAt(LocalDateTime.now());
             notificationRepository.save(notification);
 
@@ -75,14 +76,14 @@ public class EmailService {
         log.error("Failed to send email notification: {}", notification.getId(), exception);
 
         // Update notification with error
-        notification.setStatus("FAILED");
+        notification.setStatus(NotificationStatus.FAILED);
         notification.setErrorMessage(exception.getMessage());
 
         // Check if we should retry
         if (notification.getRetryCount() < MAX_RETRY_ATTEMPTS) {
             notification.setRetryCount(notification.getRetryCount() + 1);
             notification.setLastRetryAt(LocalDateTime.now());
-            notification.setStatus("PENDING_RETRY");
+            notification.setStatus(NotificationStatus.PENDING_RETRY);
             log.info("Scheduled for retry, attempt {} of {}",
                     notification.getRetryCount(), MAX_RETRY_ATTEMPTS);
 

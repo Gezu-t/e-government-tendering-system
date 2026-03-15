@@ -1,6 +1,7 @@
 package com.egov.tendering.notification.dal.repository;
 
 import com.egov.tendering.notification.dal.model.Notification;
+import com.egov.tendering.notification.dal.model.NotificationStatus;
 import com.egov.tendering.notification.dal.model.NotificationType;
 
 import org.springframework.data.domain.Page;
@@ -14,13 +15,16 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface NotificationRepository extends JpaRepository<Notification, String> {
+public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
     /**
      * Find all notifications for a specific recipient ordered by creation date descending
      */
     @Query("SELECT n FROM Notification n JOIN n.recipients r WHERE r = :recipient ORDER BY n.createdAt DESC")
     List<Notification> findByRecipientOrderByCreatedAtDesc(@Param("recipient") String recipient);
+
+    @Query("SELECT DISTINCT n FROM Notification n JOIN n.recipients r WHERE r IN :recipients ORDER BY n.createdAt DESC")
+    List<Notification> findByRecipientsOrderByCreatedAtDesc(@Param("recipients") java.util.Collection<String> recipients);
 
     /**
      * Find all notifications for a specific recipient with pagination
@@ -34,11 +38,17 @@ public interface NotificationRepository extends JpaRepository<Notification, Stri
     @Query("SELECT n FROM Notification n JOIN n.recipients r WHERE r = :recipient AND n.read = false ORDER BY n.createdAt DESC")
     List<Notification> findUnreadByRecipient(@Param("recipient") String recipient);
 
+    @Query("SELECT DISTINCT n FROM Notification n JOIN n.recipients r WHERE r IN :recipients AND n.read = false ORDER BY n.createdAt DESC")
+    List<Notification> findUnreadByRecipients(@Param("recipients") java.util.Collection<String> recipients);
+
     /**
      * Count unread notifications for a specific recipient
      */
     @Query("SELECT COUNT(n) FROM Notification n JOIN n.recipients r WHERE r = :recipient AND n.read = false")
     long countUnreadByRecipient(@Param("recipient") String recipient);
+
+    @Query("SELECT COUNT(DISTINCT n) FROM Notification n JOIN n.recipients r WHERE r IN :recipients AND n.read = false")
+    long countUnreadByRecipients(@Param("recipients") java.util.Collection<String> recipients);
 
     /**
      * Find notifications by type for a specific recipient
@@ -59,8 +69,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Stri
     /**
      * Find failed notifications that need to be retried
      */
-    List<Notification> findByStatusAndLastRetryAtBefore(String status, LocalDateTime lastRetryBefore);
+    List<Notification> findByStatusAndLastRetryAtBefore(NotificationStatus status, LocalDateTime lastRetryBefore);
 
-    List<Notification> findByStatusAndScheduledAtBefore(String status, LocalDateTime scheduledAt);
+    List<Notification> findByStatusAndScheduledAtBefore(NotificationStatus status, LocalDateTime scheduledAt);
 
 }

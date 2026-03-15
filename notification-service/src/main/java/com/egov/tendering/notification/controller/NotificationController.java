@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -50,14 +54,20 @@ public class NotificationController {
   @PreAuthorize("hasRole('ADMIN') or @securityUtil.isCurrentUser(#userId)")
   public ResponseEntity<List<NotificationSummaryDTO>> getUserNotifications(
           @PathVariable String userId,
+          @AuthenticationPrincipal Jwt jwt,
           @RequestParam(required = false, defaultValue = "false") boolean unreadOnly) {
     log.info("REST request to get notifications for user: {}, unreadOnly: {}", userId, unreadOnly);
 
+    Set<String> lookupIdentifiers = lookupIdentifiers(jwt, userId);
     List<Notification> notifications;
     if (unreadOnly) {
-      notifications = notificationService.getUnreadNotificationsForUser(userId);
+      notifications = isAdmin(jwt)
+              ? notificationService.getUnreadNotificationsForUser(userId)
+              : notificationService.getUnreadNotificationsForUsers(lookupIdentifiers);
     } else {
-      notifications = notificationService.getNotificationsForUser(userId);
+      notifications = isAdmin(jwt)
+              ? notificationService.getNotificationsForUser(userId)
+              : notificationService.getNotificationsForUsers(lookupIdentifiers);
     }
 
     // Map to DTOs
@@ -71,7 +81,7 @@ public class NotificationController {
   @GetMapping("/{id}")
   @Operation(summary = "Get notification details by ID")
   @PreAuthorize("hasRole('ADMIN') or @securityUtil.canAccessNotification(#id)")
-  public ResponseEntity<Notification> getNotification(@PathVariable String id) {
+  public ResponseEntity<Notification> getNotification(@PathVariable Long id) {
     log.info("REST request to get notification: {}", id);
     return notificationService.getNotification(id)
             .map(ResponseEntity::ok)
@@ -81,7 +91,7 @@ public class NotificationController {
   @PutMapping("/{id}/read")
   @Operation(summary = "Mark a notification as read")
   @PreAuthorize("hasRole('ADMIN') or @securityUtil.canAccessNotification(#id)")
-  public ResponseEntity<Void> markAsRead(@PathVariable String id) {
+  public ResponseEntity<Void> markAsRead(@PathVariable Long id) {
     log.info("REST request to mark notification as read: {}", id);
     notificationService.markAsRead(id);
     return ResponseEntity.ok().build();
@@ -90,10 +100,46 @@ public class NotificationController {
   @GetMapping("/count/unread/{userId}")
   @Operation(summary = "Count unread notifications for a user")
   @PreAuthorize("hasRole('ADMIN') or @securityUtil.isCurrentUser(#userId)")
-  public ResponseEntity<Long> countUnread(@PathVariable String userId) {
+  public ResponseEntity<Long> countUnread(
+          @PathVariable String userId,
+          @AuthenticationPrincipal Jwt jwt) {
     log.info("REST request to count unread notifications for user: {}", userId);
-    long count = notificationService.countUnreadNotifications(userId);
+    long count = isAdmin(jwt)
+            ? notificationService.countUnreadNotifications(userId)
+            : notificationService.countUnreadNotifications(lookupIdentifiers(jwt, userId));
     return ResponseEntity.ok(count);
+  }
+
+  private Set<String> lookupIdentifiers(Jwt jwt, String requestedUserId) {
+    Set<String> identifiers = new LinkedHashSet<>();
+    if (requestedUserId != null && !requestedUserId.isBlank()) {
+      identifiers.add(requestedUserId);
+    }
+    if (jwt != null) {
+      if (jwt.getSubject() != null && !jwt.getSubject().isBlank()) {
+        identifiers.add(jwt.getSubject());
+      }
+      Object userIdClaim = jwt.getClaim("userId");
+      if (userIdClaim != null && !userIdClaim.toString().isBlank()) {
+        identifiers.add(userIdClaim.toString());
+      }
+    }
+    return identifiers;
+  }
+
+  private boolean isAdmin(Jwt jwt) {
+    if (jwt == null) {
+      return false;
+    }
+    Object rolesClaim = jwt.getClaim("roles");
+    if (rolesClaim instanceof Iterable<?> iterable) {
+      for (Object role : iterable) {
+        if ("ROLE_ADMIN".equals(String.valueOf(role))) {
+          return true;
+        }
+      }
+    }
+    return rolesClaim != null && rolesClaim.toString().contains("ROLE_ADMIN");
   }
 
   private NotificationSummaryDTO mapToSummaryDto(Notification notification) {

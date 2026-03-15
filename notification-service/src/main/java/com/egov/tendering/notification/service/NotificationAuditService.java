@@ -1,6 +1,7 @@
 package com.egov.tendering.notification.service;
 
 import com.egov.tendering.notification.dal.model.NotificationAudit;
+import com.egov.tendering.notification.dal.model.NotificationStatus;
 import com.egov.tendering.notification.dal.repository.NotificationAuditRepository;
 import com.egov.tendering.notification.event.*;
 
@@ -10,8 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
-
 /**
  * Service for auditing all notification-related events
  */
@@ -82,13 +81,13 @@ public class NotificationAuditService {
         audit.setRecipient(event.getRecipient());
         audit.setErrorMessage(event.getErrorMessage());
         audit.setRetryCount(event.getRetryCount());
-        audit.setStatus("FAILED");
+        audit.setStatus(NotificationStatus.FAILED.name());
     }
 
     private void populateRetryDetails(NotificationAudit audit, NotificationRetryEvent event) {
         audit.setChannel(event.getChannel());
         audit.setRecipient(event.getRecipient());
         audit.setRetryCount(event.getRetryCount());
-        audit.setStatus("PENDING_RETRY");
+        audit.setStatus(NotificationStatus.PENDING_RETRY.name());
     }
 }

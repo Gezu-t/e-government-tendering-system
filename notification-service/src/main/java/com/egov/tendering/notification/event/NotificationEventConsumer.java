@@ -1,6 +1,7 @@
 package com.egov.tendering.notification.event;
 
 import com.egov.tendering.notification.dal.model.Notification;
+import com.egov.tendering.notification.dal.model.NotificationStatus;
 import com.egov.tendering.notification.dal.repository.NotificationRepository;
 import com.egov.tendering.notification.service.EmailService;
 import com.egov.tendering.notification.service.NotificationAuditService;
@@ -64,7 +65,7 @@ public class NotificationEventConsumer {
     private void handleRetryEvent(NotificationRetryEvent event) {
         log.info("Processing retry event for notification: {}", event.getNotificationId());
 
-        Optional<Notification> notificationOpt = notificationRepository.findById(String.valueOf(event.getNotificationId()));
+        Optional<Notification> notificationOpt = notificationRepository.findById(event.getNotificationId());
         if (notificationOpt.isEmpty()) {
             log.warn("Cannot retry notification: {} - not found", event.getNotificationId());
             return;
@@ -73,7 +74,7 @@ public class NotificationEventConsumer {
         Notification notification = notificationOpt.get();
 
         // Only process if the notification is in PENDING_RETRY status
-        if (!"PENDING_RETRY".equals(notification.getStatus())) {
+        if (notification.getStatus() != NotificationStatus.PENDING_RETRY) {
             log.info("Skipping retry for notification: {} - current status: {}",
                     notification.getId(), notification.getStatus());
             return;
@@ -87,7 +88,7 @@ public class NotificationEventConsumer {
     private void handleFailedEvent(NotificationFailedEvent event) {
         log.info("Processing failed event for notification: {}", event.getNotificationId());
 
-        Optional<Notification> notificationOpt = notificationRepository.findById(String.valueOf(event.getNotificationId()));
+        Optional<Notification> notificationOpt = notificationRepository.findById(event.getNotificationId());
         if (notificationOpt.isEmpty()) {
             log.warn("Failed notification not found: {}", event.getNotificationId());
             return;
@@ -111,30 +112,30 @@ public class NotificationEventConsumer {
         log.info("Processing email sent event for notification: {}", event.getNotificationId());
 
         // This could be used for analytics, auditing, or confirmation processing
-        updateNotificationStatus(String.valueOf(event.getNotificationId()), "DELIVERED");
+        updateNotificationStatus(event.getNotificationId(), NotificationStatus.DELIVERED);
     }
 
     private void handleSmsSentEvent(SmsSentEvent event) {
         log.info("Processing SMS sent event for notification: {}", event.getNotificationId());
 
         // This could be used for analytics, auditing, or confirmation processing
-        updateNotificationStatus(String.valueOf(event.getNotificationId()), "DELIVERED");
+        updateNotificationStatus(event.getNotificationId(), NotificationStatus.DELIVERED);
     }
 
     private void handlePushSentEvent(PushSentEvent event) {
         log.info("Processing push sent event for notification: {}", event.getNotificationId());
 
         // This could be used for analytics, auditing, or confirmation processing
-        updateNotificationStatus(String.valueOf(event.getNotificationId()), "DELIVERED");
+        updateNotificationStatus(event.getNotificationId(), NotificationStatus.DELIVERED);
     }
 
-    private void updateNotificationStatus(String notificationId, String status) {
+    private void updateNotificationStatus(Long notificationId, NotificationStatus status) {
         notificationRepository.findById(notificationId).ifPresent(notification -> {
             // Only update if the status is changing
-            if (!status.equals(notification.getStatus())) {
+            if (notification.getStatus() != status) {
                 notification.setStatus(status);
 
-                if ("DELIVERED".equals(status) && notification.getDeliveredAt() == null) {
+                if (status == NotificationStatus.DELIVERED && notification.getDeliveredAt() == null) {
                     notification.setDeliveredAt(LocalDateTime.now());
                 }
 

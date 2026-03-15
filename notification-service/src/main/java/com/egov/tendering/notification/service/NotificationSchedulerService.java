@@ -3,7 +3,9 @@ package com.egov.tendering.notification.service;
 
 import com.egov.tendering.notification.dal.model.Notification;
 import com.egov.tendering.notification.dal.model.NotificationChannel;
+import com.egov.tendering.notification.dal.model.NotificationStatus;
 import com.egov.tendering.notification.dal.repository.NotificationRepository;
+import com.egov.tendering.notification.exception.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -41,7 +43,7 @@ public class NotificationSchedulerService {
         log.debug("Processing scheduled notifications at {}", now);
 
         List<Notification> dueNotifications = notificationRepository.findByStatusAndScheduledAtBefore(
-                "SCHEDULED", now);
+                NotificationStatus.SCHEDULED, now);
 
         if (dueNotifications.isEmpty()) {
             log.debug("No scheduled notifications due for processing");
@@ -67,7 +69,7 @@ public class NotificationSchedulerService {
         // Find notifications that are due for retry (waited at least RETRY_DELAY_MINUTES)
         LocalDateTime retryBefore = LocalDateTime.now().minus(RETRY_DELAY_MINUTES, ChronoUnit.MINUTES);
         List<Notification> notificationsToRetry = notificationRepository.findByStatusAndLastRetryAtBefore(
-                "PENDING_RETRY", retryBefore);
+                NotificationStatus.PENDING_RETRY, retryBefore);
 
         if (notificationsToRetry.isEmpty()) {
             log.debug("No notifications to retry at this time");
@@ -89,7 +91,7 @@ public class NotificationSchedulerService {
 
         try {
             // Update status from SCHEDULED to PENDING
-            notification.setStatus("PENDING");
+            notification.setStatus(NotificationStatus.PENDING);
             notification = notificationRepository.save(notification);
 
             // Deliver the notification
@@ -98,7 +100,7 @@ public class NotificationSchedulerService {
             log.info("Successfully processed scheduled notification: {}", notification.getId());
         } catch (Exception e) {
             log.error("Error processing scheduled notification: {}", notification.getId(), e);
-            notification.setStatus("FAILED");
+            notification.setStatus(NotificationStatus.FAILED);
             notification.setErrorMessage("Error processing scheduled notification: " + e.getMessage());
             notificationRepository.save(notification);
         }
@@ -117,7 +119,7 @@ public class NotificationSchedulerService {
 
         try {
             // Update status to PENDING
-            notification.setStatus("PENDING");
+            notification.setStatus(NotificationStatus.PENDING);
             notification = notificationRepository.save(notification);
 
             // Attempt delivery again
@@ -138,11 +140,11 @@ public class NotificationSchedulerService {
 
         if (notification.getRetryCount() >= MAX_RETRY_ATTEMPTS) {
             // Max retries reached, mark as permanently failed
-            notification.setStatus("FAILED");
+            notification.setStatus(NotificationStatus.FAILED);
             log.warn("Max retry attempts reached for notification: {}", notification.getId());
         } else {
             // Schedule another retry
-            notification.setStatus("PENDING_RETRY");
+            notification.setStatus(NotificationStatus.PENDING_RETRY);
             notification.setLastRetryAt(LocalDateTime.now());
             log.info("Scheduled for another retry, attempt {}/{}",
                     notification.getRetryCount(), MAX_RETRY_ATTEMPTS);
@@ -171,7 +173,7 @@ public class NotificationSchedulerService {
                     break;
                 case DASHBOARD:
                     // Just save to repository - no delivery needed
-                    notification.setStatus("DELIVERED");
+                    notification.setStatus(NotificationStatus.DELIVERED);
                     notification.setDeliveredAt(LocalDateTime.now());
                     notificationRepository.save(notification);
                     break;
@@ -181,13 +183,13 @@ public class NotificationSchedulerService {
             }
 
             // If we get here without an exception, the notification was delivered successfully
-            if (!"DELIVERED".equals(notification.getStatus())) {
-                notification.setStatus("DELIVERED");
+            if (notification.getStatus() != NotificationStatus.DELIVERED) {
+                notification.setStatus(NotificationStatus.DELIVERED);
                 notification.setDeliveredAt(LocalDateTime.now());
                 notificationRepository.save(notification);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to deliver notification: " + e.getMessage(), e);
+            throw new MessagingException("Failed to deliver notification: " + e.getMessage(), e);
         }
     }
 }

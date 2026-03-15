@@ -13,12 +13,12 @@ import java.util.List;
  * Repository for managing notification audit records
  */
 @Repository
-public interface NotificationAuditRepository extends JpaRepository<NotificationAudit, String> {
+public interface NotificationAuditRepository extends JpaRepository<NotificationAudit, Long> {
 
     /**
      * Find all audit records for a specific notification
      */
-    List<NotificationAudit> findByNotificationIdOrderByTimestampDesc(String notificationId);
+    List<NotificationAudit> findByNotificationIdOrderByTimestampDesc(Long notificationId);
 
     /**
      * Find all audit records for a specific event type
@@ -50,5 +50,5 @@ public interface NotificationAuditRepository extends JpaRepository<NotificationA
      * Find all audit records for a specific notification with pagination
      */
     Page<NotificationAudit> findByNotificationIdOrderByTimestampDesc(
-            String notificationId, Pageable pageable);
+            Long notificationId, Pageable pageable);
 }

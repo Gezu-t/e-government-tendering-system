@@ -35,8 +35,9 @@ public class Notification {
   @ElementCollection
   private List<String> recipients;
 
+  @Enumerated(EnumType.STRING)
   @Column(nullable = false)
-  private String status;
+  private NotificationStatus status;
 
   @Column
   private String errorMessage;
@@ -66,4 +67,3 @@ public class Notification {
   @Column
   private LocalDateTime sentAt;
 }
-

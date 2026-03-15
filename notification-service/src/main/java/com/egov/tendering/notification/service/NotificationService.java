@@ -4,6 +4,7 @@ import com.egov.tendering.notification.config.KafkaTopics;
 import com.egov.tendering.notification.dal.dto.NotificationRequest;
 import com.egov.tendering.notification.dal.dto.NotificationResponse;
 import com.egov.tendering.notification.dal.model.Notification;
+import com.egov.tendering.notification.dal.model.NotificationStatus;
 import com.egov.tendering.notification.dal.model.NotificationType;
 import com.egov.tendering.notification.dal.repository.NotificationRepository;
 import com.egov.tendering.notification.event.GenericNotificationEvent;
@@ -17,11 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.UUID;
-
+import java.util.Set;
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -62,20 +62,12 @@ public class NotificationService {
     public void handleBidSubmitted(GenericNotificationEvent event) {
         log.info("Received bid submitted event: {}", event);
 
-        // Convert single recipient to list if necessary
-        List<String> recipients;
-        if (event.getRecipients() != null) {
-            recipients = Collections.singletonList(String.valueOf(event.getRecipients()));
-        } else {
-            recipients = new ArrayList<>();
-        }
-
         sendNotification(
                 NotificationType.BID_SUBMITTED,
                 event.getEntityId(),
                 "New Bid Submitted",
                 "A new bid has been submitted for tender: " + event.getEntityId(),
-                recipients
+                safeRecipients(event)
         );
     }
 
@@ -83,20 +75,12 @@ public class NotificationService {
     public void handleBidEvaluationCompleted(GenericNotificationEvent event) {
         log.info("Received bid evaluation completed event: {}", event);
 
-        // Convert single recipient to list if necessary
-        List<String> recipients;
-        if (event.getRecipients() != null) {
-            recipients = Collections.singletonList(String.valueOf(event.getRecipients()));
-        } else {
-            recipients = new ArrayList<>();
-        }
-
         sendNotification(
                 NotificationType.BID_EVALUATION_COMPLETED,
                 event.getEntityId(),
                 "Bid Evaluation Completed",
                 "Bid evaluation has been completed for tender: " + event.getEntityId(),
-                recipients
+                safeRecipients(event)
         );
     }
 
@@ -104,20 +88,12 @@ public class NotificationService {
     public void handleContractAwarded(GenericNotificationEvent event) {
         log.info("Received contract awarded event: {}", event);
 
-        // Convert single recipient to list if necessary
-        List<String> recipients;
-        if (event.getRecipients() != null) {
-            recipients = Collections.singletonList(String.valueOf(event.getRecipients()));
-        } else {
-            recipients = new ArrayList<>();
-        }
-
         sendNotification(
                 NotificationType.CONTRACT_AWARDED,
                 event.getEntityId(),
                 "Contract Awarded",
                 "A contract has been awarded for tender: " + event.getEntityId(),
-                recipients
+                safeRecipients(event)
         );
     }
 
@@ -157,7 +133,7 @@ public class NotificationService {
         );
 
         // Set scheduled time
-        notification.setStatus("SCHEDULED");
+        notification.setStatus(NotificationStatus.SCHEDULED);
         notification.setScheduledAt(scheduledTime);
 
         // Save to repository
@@ -179,9 +155,29 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
+    public List<Notification> getNotificationsForUsers(Collection<String> userIdentifiers) {
+        Set<String> identifiers = normalizeIdentifiers(userIdentifiers);
+        log.info("Fetching notifications for identifiers: {}", identifiers);
+        if (identifiers.isEmpty()) {
+            return List.of();
+        }
+        return notificationRepository.findByRecipientsOrderByCreatedAtDesc(identifiers);
+    }
+
+    @Transactional(readOnly = true)
     public List<Notification> getUnreadNotificationsForUser(String userId) {
         log.info("Fetching unread notifications for user: {}", userId);
         return notificationRepository.findUnreadByRecipient(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Notification> getUnreadNotificationsForUsers(Collection<String> userIdentifiers) {
+        Set<String> identifiers = normalizeIdentifiers(userIdentifiers);
+        log.info("Fetching unread notifications for identifiers: {}", identifiers);
+        if (identifiers.isEmpty()) {
+            return List.of();
+        }
+        return notificationRepository.findUnreadByRecipients(identifiers);
     }
 
     @Transactional(readOnly = true)
@@ -191,13 +187,23 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public java.util.Optional<Notification> getNotification(String notificationId) {
+    public long countUnreadNotifications(Collection<String> userIdentifiers) {
+        Set<String> identifiers = normalizeIdentifiers(userIdentifiers);
+        log.info("Counting unread notifications for identifiers: {}", identifiers);
+        if (identifiers.isEmpty()) {
+            return 0L;
+        }
+        return notificationRepository.countUnreadByRecipients(identifiers);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Optional<Notification> getNotification(Long notificationId) {
         log.info("Fetching notification details: {}", notificationId);
         return notificationRepository.findById(notificationId);
     }
 
     @Transactional
-    public void markAsRead(String notificationId) {
+    public void markAsRead(Long notificationId) {
         log.info("Marking notification as read: {}", notificationId);
         notificationRepository.findById(notificationId).ifPresent(notification -> {
             notification.setRead(true);
@@ -219,10 +225,23 @@ public class NotificationService {
         notification.setRecipients(recipients);
         notification.setCreatedAt(LocalDateTime.now());
         notification.setRead(false);
-        notification.setStatus("PENDING");
+        notification.setStatus(NotificationStatus.PENDING);
         notification.setRetryCount(0);
 
         return notificationRepository.save(notification);
+    }
+
+    private Set<String> normalizeIdentifiers(Collection<String> userIdentifiers) {
+        Set<String> identifiers = new LinkedHashSet<>();
+        if (userIdentifiers == null) {
+            return identifiers;
+        }
+        for (String identifier : userIdentifiers) {
+            if (identifier != null && !identifier.isBlank()) {
+                identifiers.add(identifier);
+            }
+        }
+        return identifiers;
     }
 
     private void deliverNotification(Notification notification) {
@@ -241,18 +260,18 @@ public class NotificationService {
                     break;
                 case DASHBOARD:
                     // Just save to repository - no delivery needed
-                    notification.setStatus("DELIVERED");
+                    notification.setStatus(NotificationStatus.DELIVERED);
                     notification.setDeliveredAt(LocalDateTime.now());
                     break;
                 default:
                     log.warn("Unknown channel for notification type: {}", notification.getType());
-                    notification.setStatus("FAILED");
+                    notification.setStatus(NotificationStatus.FAILED);
                     notification.setErrorMessage("Unknown notification channel");
                     break;
             }
 
             // If notification was delivered successfully
-            if ("DELIVERED".equals(notification.getStatus())) {
+            if (notification.getStatus() == NotificationStatus.DELIVERED) {
                 // Publish appropriate event based on channel
                 if (notification.getType().getChannel() == com.egov.tendering.notification.dal.model.NotificationChannel.EMAIL) {
                     eventPublisher.publishEmailSentEvent(notification);
@@ -265,13 +284,13 @@ public class NotificationService {
 
         } catch (Exception e) {
             log.error("Failed to deliver notification: {}", notification.getId(), e);
-            notification.setStatus("FAILED");
+            notification.setStatus(NotificationStatus.FAILED);
             notification.setErrorMessage(e.getMessage());
 
             // Increment retry count if this should be retried
             if (notification.getRetryCount() < 3) { // Max 3 retries
                 notification.setRetryCount(notification.getRetryCount() + 1);
-                notification.setStatus("PENDING_RETRY");
+                notification.setStatus(NotificationStatus.PENDING_RETRY);
                 notification.setLastRetryAt(LocalDateTime.now());
 
                 // Publish retry event
@@ -300,10 +319,14 @@ public class NotificationService {
                 .subject(notification.getSubject())
                 .message(notification.getMessage())
                 .recipients(notification.getRecipients())
-                .status(notification.getStatus())
+                .status(notification.getStatus().name())
                 .createdAt(notification.getCreatedAt())
                 .deliveredAt(notification.getDeliveredAt())
                 .sentAt(notification.getSentAt())
                 .build();
+    }
+
+    private List<String> safeRecipients(GenericNotificationEvent event) {
+        return event.getRecipients() != null ? event.getRecipients() : List.of();
     }
 }
