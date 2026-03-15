@@ -5,7 +5,6 @@ import com.egov.tendering.bidding.dal.dto.BidClarificationDTO;
 import com.egov.tendering.bidding.service.BidClarificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,7 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -38,7 +37,7 @@ public class BidClarificationController {
             description = "Retrieves all clarification requests and responses for the specified bid")
     @ApiResponse(responseCode = "200", description = "List of clarifications retrieved successfully")
     @ApiResponse(responseCode = "404", description = "Bid not found")
-    @PreAuthorize("hasAnyRole('EVALUATOR', 'TENDERER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('EVALUATOR', 'ADMIN') or @bidAccessSecurityUtil.isBidOwner(#bidId)")
     public ResponseEntity<List<BidClarificationDTO>> getClarificationsByBidId(
             @PathVariable @Parameter(description = "ID of the bid") Long bidId) {
         log.info("REST request to get clarifications for bid ID: {}", bidId);
@@ -56,8 +55,8 @@ public class BidClarificationController {
     public ResponseEntity<BidClarificationDTO> requestClarification(
             @PathVariable @Parameter(description = "ID of the bid") Long bidId,
             @RequestBody @Valid ClarificationRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        Long evaluatorId = getUserId(userDetails);
+            @AuthenticationPrincipal Jwt jwt) {
+        Long evaluatorId = getUserId(jwt);
         log.info("REST request to create clarification for bid ID: {} by evaluator ID: {}", bidId, evaluatorId);
 
         BidClarificationDTO result = clarificationService.requestClarification(
@@ -80,8 +79,8 @@ public class BidClarificationController {
     public ResponseEntity<BidClarificationDTO> respondToClarification(
             @PathVariable @Parameter(description = "ID of the clarification") Long clarificationId,
             @RequestBody @Valid ClarificationResponse response,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        Long tendererId = getUserId(userDetails);
+            @AuthenticationPrincipal Jwt jwt) {
+        Long tendererId = getUserId(jwt);
         log.info("REST request to respond to clarification ID: {} by tenderer ID: {}", clarificationId, tendererId);
 
         BidClarificationDTO result = clarificationService.respondToClarification(
@@ -105,11 +104,15 @@ public class BidClarificationController {
         return ResponseEntity.noContent().build();
     }
 
-    private Long getUserId(UserDetails userDetails) {
-        // This method would extract the user ID from your authentication system
-        // Implementation depends on how user IDs are stored in your UserDetails implementation
-        // This is a placeholder - replace with your actual implementation
-        return Long.valueOf(userDetails.getUsername());
+    private Long getUserId(Jwt jwt) {
+        Object userIdClaim = jwt.getClaim("userId");
+        if (userIdClaim instanceof Number number) {
+            return number.longValue();
+        }
+        if (userIdClaim != null) {
+            return Long.parseLong(userIdClaim.toString());
+        }
+        return Long.parseLong(jwt.getSubject());
     }
 
     // Request/Response DTOs

@@ -16,7 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -51,8 +51,8 @@ public class ComplianceController {
     public ResponseEntity<ComplianceRequirementDTO> addComplianceRequirement(
             @PathVariable @Parameter(description = "ID of the tender") Long tenderId,
             @RequestBody @Valid ComplianceRequirementDTO requirementDTO,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = getUserId(userDetails);
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = getUserId(jwt);
         log.info("REST request to add compliance requirement for tender ID: {}", tenderId);
 
         ComplianceRequirementDTO result = complianceService.addComplianceRequirement(
@@ -101,8 +101,8 @@ public class ComplianceController {
     public ResponseEntity<Void> verifyComplianceItem(
             @PathVariable @Parameter(description = "ID of the compliance item") Long complianceItemId,
             @RequestBody @Valid ComplianceVerificationRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        Long evaluatorId = getUserId(userDetails);
+            @AuthenticationPrincipal Jwt jwt) {
+        Long evaluatorId = getUserId(jwt);
         log.info("REST request to verify compliance item ID: {} with status: {}",
                 complianceItemId, request.getCompliant() ? "compliant" : "non-compliant");
 
@@ -115,9 +115,15 @@ public class ComplianceController {
         return ResponseEntity.noContent().build();
     }
 
-    private Long getUserId(UserDetails userDetails) {
-        // Extract user ID from authentication context
-        return Long.valueOf(userDetails.getUsername());
+    private Long getUserId(Jwt jwt) {
+        Object userIdClaim = jwt.getClaim("userId");
+        if (userIdClaim instanceof Number number) {
+            return number.longValue();
+        }
+        if (userIdClaim != null) {
+            return Long.parseLong(userIdClaim.toString());
+        }
+        return Long.parseLong(jwt.getSubject());
     }
 
     // Request DTO

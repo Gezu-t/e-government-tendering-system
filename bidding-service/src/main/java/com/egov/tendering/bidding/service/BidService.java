@@ -134,5 +134,10 @@ public interface BidService {
    */
   void updateBidContractStatus(Long bidId, Long contractId);
 
+  /**
+   * Update a bid's contract status when a downstream service only provides tender and bidder identifiers.
+   */
+  void updateBidContractStatusByTenderAndTenderer(Long tenderId, Long tendererId, Long contractId);
+
 
 }

@@ -18,7 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -38,7 +38,7 @@ public class BidSecurityController {
             description = "Retrieves the security document and details for the specified bid")
     @ApiResponse(responseCode = "200", description = "Bid security retrieved successfully")
     @ApiResponse(responseCode = "404", description = "Bid security not found")
-    @PreAuthorize("hasAnyRole('EVALUATOR', 'TENDERER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('EVALUATOR', 'ADMIN') or @bidAccessSecurityUtil.isBidOwner(#bidId)")
     public ResponseEntity<BidSecurityDTO> getBidSecurity(
             @PathVariable @Parameter(description = "ID of the bid") Long bidId) {
         log.info("REST request to get security for bid ID: {}", bidId);
@@ -52,7 +52,7 @@ public class BidSecurityController {
     @ApiResponse(responseCode = "201", description = "Bid security added successfully")
     @ApiResponse(responseCode = "400", description = "Invalid request parameters or bid state")
     @ApiResponse(responseCode = "404", description = "Bid not found")
-    @PreAuthorize("hasRole('TENDERER')")
+    @PreAuthorize("hasRole('TENDERER') and @bidAccessSecurityUtil.isBidOwner(#bidId)")
     public ResponseEntity<BidSecurityDTO> addBidSecurity(
             @PathVariable @Parameter(description = "ID of the bid") Long bidId,
             @RequestPart("securityData") @Valid BidSecurityRequest request,
@@ -72,8 +72,8 @@ public class BidSecurityController {
     public ResponseEntity<BidSecurityDTO> verifyBidSecurity(
             @PathVariable @Parameter(description = "ID of the security") Long securityId,
             @RequestBody @Valid SecurityVerificationRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        Long evaluatorId = getUserId(userDetails);
+            @AuthenticationPrincipal Jwt jwt) {
+        Long evaluatorId = getUserId(jwt);
         log.info("REST request to verify security ID: {} with status: {}", securityId, request.getStatus());
 
         BidSecurityDTO result = bidSecurityService.verifyBidSecurity(
@@ -104,10 +104,15 @@ public class BidSecurityController {
         return ResponseEntity.ok(result);
     }
 
-    private Long getUserId(UserDetails userDetails) {
-        // This method would extract the user ID from your authentication system
-        // Implementation depends on how user IDs are stored in your UserDetails implementation
-        return Long.valueOf(userDetails.getUsername());
+    private Long getUserId(Jwt jwt) {
+        Object userIdClaim = jwt.getClaim("userId");
+        if (userIdClaim instanceof Number number) {
+            return number.longValue();
+        }
+        if (userIdClaim != null) {
+            return Long.parseLong(userIdClaim.toString());
+        }
+        return Long.parseLong(jwt.getSubject());
     }
 
     // Request DTOs

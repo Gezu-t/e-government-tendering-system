@@ -15,6 +15,8 @@ public interface BidVersionService {
 
     List<BidVersionDTO> getBidVersions(Long bidId);
 
+    BidVersionDTO getBidVersion(Long bidId, Integer versionNumber);
+
     @Transactional
     BidDTO rollbackToVersion(Long bidId, Integer versionNumber);
 }

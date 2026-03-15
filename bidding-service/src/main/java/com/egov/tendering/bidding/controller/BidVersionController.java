@@ -5,7 +5,11 @@ import com.egov.tendering.bidding.dal.dto.BidVersionDTO;
 import com.egov.tendering.bidding.service.BidVersionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +23,7 @@ public class BidVersionController {
     private final BidVersionService bidVersionService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR') or @bidAccessSecurityUtil.isBidOwner(#bidId)")
     public ResponseEntity<List<BidVersionDTO>> getBidVersions(@PathVariable Long bidId) {
         log.info("Getting version history for bid ID: {}", bidId);
         List<BidVersionDTO> versions = bidVersionService.getBidVersions(bidId);
@@ -26,20 +31,36 @@ public class BidVersionController {
     }
 
     @GetMapping("/{versionNumber}")
-    public ResponseEntity<List<BidVersionDTO>> getBidVersion(
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR') or @bidAccessSecurityUtil.isBidOwner(#bidId)")
+    public ResponseEntity<BidVersionDTO> getBidVersion(
             @PathVariable Long bidId,
             @PathVariable Integer versionNumber) {
         log.info("Getting version {} for bid ID: {}", versionNumber, bidId);
-        List<BidVersionDTO> version = bidVersionService.getBidVersions(bidId);
+        BidVersionDTO version = bidVersionService.getBidVersion(bidId, versionNumber);
         return ResponseEntity.ok(version);
     }
 
-    @GetMapping("/compare")
-    public ResponseEntity<Void> compareVersions(
+    @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR') or @bidAccessSecurityUtil.isBidOwner(#bidId)")
+    public ResponseEntity<BidVersionDTO> createBidVersion(
             @PathVariable Long bidId,
-          @RequestBody BidDTO bidData,  @RequestParam String changeSummary,  @RequestParam Long createdBy) {
-        log.info("Comparing versions {} and {} for bid ID: {}", bidId, bidData, bidId);
-        bidVersionService.saveBidVersion(bidId, bidData, changeSummary, createdBy);
-        return ResponseEntity.ok().build();
+            @RequestBody BidDTO bidData,
+            @RequestParam String changeSummary,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long createdBy = getUserId(jwt);
+        log.info("Creating version snapshot for bid ID: {}", bidId);
+        BidVersionDTO version = bidVersionService.saveBidVersion(bidId, bidData, changeSummary, createdBy);
+        return ResponseEntity.status(HttpStatus.CREATED).body(version);
+    }
+
+    private Long getUserId(Jwt jwt) {
+        Object userIdClaim = jwt.getClaim("userId");
+        if (userIdClaim instanceof Number number) {
+            return number.longValue();
+        }
+        if (userIdClaim != null) {
+            return Long.parseLong(userIdClaim.toString());
+        }
+        return Long.parseLong(jwt.getSubject());
     }
 }

@@ -64,6 +64,7 @@ public class FileStorageController {
             description = "Downloads a previously uploaded file by its fileName")
     @ApiResponse(responseCode = "200", description = "File downloaded successfully")
     @ApiResponse(responseCode = "404", description = "File not found")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR') or @bidFileSecurityUtil.canAccessFile(#fileName)")
     public ResponseEntity<Resource> downloadFile(
             @PathVariable @Parameter(description = "Name of the file to download") String fileName,
             HttpServletRequest request) {

@@ -76,6 +76,9 @@ public class FileStorageServiceImpl implements FileStorageService {
     public Resource loadFileAsResource(String fileName) {
         try {
             Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
+            if (!filePath.startsWith(this.fileStorageLocation)) {
+                throw new FileStorageException("Invalid file path: " + fileName);
+            }
             Resource resource = new UrlResource(filePath.toUri());
 
             if (resource.exists()) {
@@ -93,6 +96,9 @@ public class FileStorageServiceImpl implements FileStorageService {
     public boolean deleteFile(String fileName) {
         try {
             Path file = this.fileStorageLocation.resolve(fileName).normalize();
+            if (!file.startsWith(this.fileStorageLocation)) {
+                throw new FileStorageException("Invalid file path: " + fileName);
+            }
             boolean result = Files.deleteIfExists(file);
             if (result) {
                 log.info("Successfully deleted file: {}", fileName);

@@ -8,6 +8,7 @@ import com.egov.tendering.bidding.event.BidEventPublisher;
 import com.egov.tendering.bidding.exception.*;
 import com.egov.tendering.bidding.service.BidService;
 import com.egov.tendering.bidding.service.FileStorageService;
+import com.egov.tendering.bidding.service.TenderWorkflowGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +22,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -47,12 +47,15 @@ public class BidServiceImpl implements BidService {
 
     private final BidEventPublisher eventPublisher;
     private final FileStorageService fileStorageService;
+    private final TenderWorkflowGuard tenderWorkflowGuard;
     private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
     public BidDTO createBid(BidSubmissionRequest request, Long tendererId) {
         log.info("Creating bid for tender ID: {} by tenderer ID: {}", request.getTenderId(), tendererId);
+        tenderWorkflowGuard.validateOpenForBidSubmission(request.getTenderId(), LocalDateTime.now());
+
         Bid bid = Bid.builder()
                 .tenderId(request.getTenderId())
                 .tendererId(tendererId)
@@ -99,6 +102,8 @@ public class BidServiceImpl implements BidService {
         if (bid.getStatus() != BidStatus.DRAFT) {
             throw new InvalidBidStateException("Only draft bids can be submitted");
         }
+
+        tenderWorkflowGuard.validateOpenForBidSubmission(bid.getTenderId(), LocalDateTime.now());
 
         bid.setStatus(BidStatus.SUBMITTED);
         bid.setSubmissionTime(LocalDateTime.now());
@@ -179,6 +184,8 @@ public class BidServiceImpl implements BidService {
             throw new InvalidBidStateException("Documents can only be added to draft bids");
         }
 
+        tenderWorkflowGuard.validateOpenForBidSubmission(bid.getTenderId(), LocalDateTime.now());
+
         String filePath = fileStorageService.storeFile(file, "bid-" + bidId + "-" + System.currentTimeMillis());
         BidDocument document = BidDocument.builder()
                 .bid(bid)
@@ -208,6 +215,8 @@ public class BidServiceImpl implements BidService {
         if (bid.getStatus() != BidStatus.DRAFT) {
             throw new InvalidBidStateException("Documents can only be removed from draft bids");
         }
+
+        tenderWorkflowGuard.validateOpenForBidSubmission(bid.getTenderId(), LocalDateTime.now());
 
         BidDocument document = bidDocumentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document", "id", documentId));
@@ -242,6 +251,8 @@ public class BidServiceImpl implements BidService {
             throw new com.egov.tendering.bidding.exception.AccessDeniedException(
                     "You don't have permission to update this bid");
         }
+
+        tenderWorkflowGuard.validateOpenForBidSubmission(bid.getTenderId(), LocalDateTime.now());
 
         saveVersionData(bid, "Bid update");
 
@@ -279,7 +290,7 @@ public class BidServiceImpl implements BidService {
             bidVersionRepository.save(version);
         } catch (Exception e) {
             log.error("Failed to save bid version for bid ID: {}", bid.getId(), e);
-            throw new RuntimeException("Failed to save bid version", e);
+            throw new BidVersioningException("Failed to save bid version", e);
         }
     }
 
@@ -392,6 +403,8 @@ public class BidServiceImpl implements BidService {
         if (bid.getStatus() != BidStatus.DRAFT) {
             throw new InvalidBidStateException("Only draft bids can be submitted");
         }
+
+        tenderWorkflowGuard.validateOpenForBidSubmission(bid.getTenderId(), LocalDateTime.now());
 
         BidSecurity security = BidSecurity.builder()
                 .bid(bid)
@@ -618,5 +631,17 @@ public class BidServiceImpl implements BidService {
         bidRepository.save(bid);
         eventPublisher.publishBidStatusChangedEvent(bid, oldStatus);
         log.info("Updated contract status for bid ID: {} to CONTRACTED with contract ID: {}", bidId, contractId);
+    }
+
+    @Transactional
+    public void updateBidContractStatusByTenderAndTenderer(Long tenderId, Long tendererId, Long contractId) {
+        log.info("Updating contract status for tender ID: {} and tenderer ID: {} with contract ID: {}",
+                tenderId, tendererId, contractId);
+
+        Bid bid = bidRepository.findByTenderIdAndTendererId(tenderId, tendererId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Bid", "tenderId/tendererId", tenderId + "/" + tendererId));
+
+        updateBidContractStatus(bid.getId(), contractId);
     }
 }

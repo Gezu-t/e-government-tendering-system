@@ -6,6 +6,7 @@ import com.egov.tendering.bidding.dal.dto.BidVersionDTO;
 import com.egov.tendering.bidding.dal.mapper.BidVersionMapper;
 import com.egov.tendering.bidding.dal.model.BidVersion;
 import com.egov.tendering.bidding.dal.repository.BidVersionRepository;
+import com.egov.tendering.bidding.exception.BidVersioningException;
 import com.egov.tendering.bidding.service.BidVersionService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,7 +48,7 @@ public class BidVersionServiceImpl implements BidVersionService {
             return bidVersionMapper.toDto(bidVersionRepository.save(bidVersion));
 
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize bid data", e);
+            throw new BidVersioningException("Failed to serialize bid data", e);
         }
     }
 
@@ -60,6 +61,13 @@ public class BidVersionServiceImpl implements BidVersionService {
                 .stream()
                 .map(bidVersionMapper::toDto)
                 .toList();
+    }
+
+    @Override
+    public BidVersionDTO getBidVersion(Long bidId, Integer versionNumber) {
+        BidVersion bidVersion = bidVersionRepository.findByBidIdAndVersionNumber(bidId, versionNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Bid version not found"));
+        return bidVersionMapper.toDto(bidVersion);
     }
 
     /**
@@ -77,7 +85,7 @@ public class BidVersionServiceImpl implements BidVersionService {
         try {
             return objectMapper.readValue(bidVersion.getVersionData(), BidDTO.class);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to deserialize bid data", e);
+            throw new BidVersioningException("Failed to deserialize bid data", e);
         }
     }
 }

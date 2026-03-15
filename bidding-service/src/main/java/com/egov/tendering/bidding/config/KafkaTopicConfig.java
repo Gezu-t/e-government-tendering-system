@@ -12,6 +12,18 @@ public class KafkaTopicConfig {
     @Value("${app.kafka.topics.bid-events}")
     private String bidEventsTopic;
 
+    @Value("${app.kafka.topics.tender-events:tender-events}")
+    private String tenderEventsTopic;
+
+    @Value("${app.kafka.topics.evaluation-events:evaluation-events}")
+    private String evaluationEventsTopic;
+
+    @Value("${app.kafka.topics.tender-evaluation-completed:tender-evaluation-completed}")
+    private String tenderEvaluationCompletedTopic;
+
+    @Value("${app.kafka.topics.contract-events:contract-events}")
+    private String contractEventsTopic;
+
     /**
      * Creates the bid events topic with partitions for parallelism
      * and replication factor for reliability
@@ -29,7 +41,7 @@ public class KafkaTopicConfig {
      */
     @Bean
     public NewTopic tenderEventsTopic() {
-        return TopicBuilder.name("tender-events")
+        return TopicBuilder.name(tenderEventsTopic)
                 .partitions(3)
                 .replicas(1)
                 .build();
@@ -40,7 +52,15 @@ public class KafkaTopicConfig {
      */
     @Bean
     public NewTopic evaluationEventsTopic() {
-        return TopicBuilder.name("evaluation-events")
+        return TopicBuilder.name(evaluationEventsTopic)
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic tenderEvaluationCompletedTopic() {
+        return TopicBuilder.name(tenderEvaluationCompletedTopic)
                 .partitions(3)
                 .replicas(1)
                 .build();
@@ -51,7 +71,7 @@ public class KafkaTopicConfig {
      */
     @Bean
     public NewTopic contractEventsTopic() {
-        return TopicBuilder.name("contract-events")
+        return TopicBuilder.name(contractEventsTopic)
                 .partitions(3)
                 .replicas(1)
                 .build();

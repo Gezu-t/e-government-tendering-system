@@ -32,7 +32,7 @@ public class BidItemController {
             description = "Save a list of items for a specific bid")
     @ApiResponse(responseCode = "201", description = "Bid items saved successfully")
     @ApiResponse(responseCode = "400", description = "Invalid request parameters")
-    @PreAuthorize("hasRole('TENDERER')")
+    @PreAuthorize("hasRole('TENDERER') and @bidAccessSecurityUtil.isBidOwner(#bidId)")
     public ResponseEntity<Void> saveBidItems(
             @PathVariable @Parameter(description = "ID of the bid") Long bidId,
             @RequestBody @Valid List<BidItemDTO> items) {
@@ -45,7 +45,7 @@ public class BidItemController {
     @Operation(summary = "Get all items for a bid",
             description = "Retrieves all items associated with the specified bid")
     @ApiResponse(responseCode = "200", description = "List of bid items retrieved successfully")
-    @PreAuthorize("hasAnyRole('EVALUATOR', 'TENDERER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('EVALUATOR', 'ADMIN') or @bidAccessSecurityUtil.isBidOwner(#bidId)")
     public ResponseEntity<List<BidItemRequest>> getBidItems(
             @PathVariable @Parameter(description = "ID of the bid") Long bidId) {
         log.info("REST request to get items for bid ID: {}", bidId);

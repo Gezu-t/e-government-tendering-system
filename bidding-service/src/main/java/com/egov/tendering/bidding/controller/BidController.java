@@ -7,6 +7,9 @@ import com.egov.tendering.bidding.service.BidService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,9 +31,11 @@ public class BidController {
   private final BidService bidService;
 
   @PostMapping
+  @PreAuthorize("hasRole('TENDERER')")
   public ResponseEntity<BidDTO> createBid(
           @Valid @RequestBody BidSubmissionRequest request,
-          @RequestHeader("X-User-ID") Long tendererId) {
+          @AuthenticationPrincipal Jwt jwt) {
+    Long tendererId = getUserId(jwt);
 
     log.info("Creating bid for tender ID: {} by tenderer ID: {}", request.getTenderId(), tendererId);
     BidDTO createdBid = bidService.createBid(request, tendererId);
@@ -38,6 +43,7 @@ public class BidController {
   }
 
   @GetMapping("/{bidId}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR') or @bidAccessSecurityUtil.isBidOwner(#bidId)")
   public ResponseEntity<BidDTO> getBidById(@PathVariable Long bidId) {
     log.info("Getting bid by ID: {}", bidId);
     BidDTO bid = bidService.getBidById(bidId);
@@ -45,6 +51,7 @@ public class BidController {
   }
 
   @PostMapping("/{bidId}/submit")
+  @PreAuthorize("hasRole('TENDERER') and @bidAccessSecurityUtil.isBidOwner(#bidId)")
   public ResponseEntity<BidDTO> submitBid(@PathVariable Long bidId) {
     log.info("Submitting bid with ID: {}", bidId);
     BidDTO submittedBid = bidService.submitBid(bidId);
@@ -52,6 +59,7 @@ public class BidController {
   }
 
   @PatchMapping("/{bidId}/status")
+  @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
   public ResponseEntity<BidDTO> updateBidStatus(
           @PathVariable Long bidId,
           @RequestParam BidStatus status) {
@@ -62,6 +70,7 @@ public class BidController {
   }
 
   @DeleteMapping("/{bidId}")
+  @PreAuthorize("hasRole('TENDERER') and @bidAccessSecurityUtil.isBidOwner(#bidId)")
   public ResponseEntity<Void> deleteBid(@PathVariable Long bidId) {
     log.info("Deleting bid with ID: {}", bidId);
     bidService.deleteBid(bidId);
@@ -69,9 +78,12 @@ public class BidController {
   }
 
   @GetMapping("/tenderer")
+  @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR', 'TENDERER')")
   public ResponseEntity<PageDTO<BidDTO>> getBidsByTenderer(
-          @RequestHeader("X-User-ID") Long tendererId,
+          @RequestHeader(value = "X-User-ID", required = false) Long requestedTendererId,
+          @AuthenticationPrincipal Jwt jwt,
           @PageableDefault(size = 10) Pageable pageable) {
+    Long tendererId = resolveTendererId(requestedTendererId, jwt);
 
     log.info("Getting bids for tenderer ID: {}", tendererId);
     PageDTO<BidDTO> bids = bidService.getBidsByTenderer(tendererId, pageable);
@@ -79,6 +91,7 @@ public class BidController {
   }
 
   @GetMapping("/tender/{tenderId}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
   public ResponseEntity<PageDTO<BidDTO>> getBidsByTender(
           @PathVariable Long tenderId,
           @PageableDefault(size = 10) Pageable pageable) {
@@ -89,6 +102,7 @@ public class BidController {
   }
 
   @GetMapping("/tender/{tenderId}/status/{status}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
   public ResponseEntity<List<BidDTO>> getBidsByTenderAndStatus(
           @PathVariable Long tenderId,
           @PathVariable BidStatus status) {
@@ -99,6 +113,7 @@ public class BidController {
   }
 
   @PostMapping("/{bidId}/documents")
+  @PreAuthorize("hasRole('TENDERER') and @bidAccessSecurityUtil.isBidOwner(#bidId)")
   public ResponseEntity<BidDTO> addDocumentToBid(
           @PathVariable Long bidId,
           @RequestParam("file") MultipartFile file,
@@ -110,6 +125,7 @@ public class BidController {
   }
 
   @DeleteMapping("/{bidId}/documents/{documentId}")
+  @PreAuthorize("hasRole('TENDERER') and @bidAccessSecurityUtil.isBidOwner(#bidId)")
   public ResponseEntity<Void> removeDocumentFromBid(
           @PathVariable Long bidId,
           @PathVariable Long documentId) {
@@ -120,13 +136,45 @@ public class BidController {
   }
 
   @GetMapping("/check")
+  @PreAuthorize("hasRole('TENDERER')")
   public ResponseEntity<Boolean> hasTendererBidForTender(
           @RequestParam Long tenderId,
-          @RequestHeader("X-User-ID") Long tendererId) {
+          @AuthenticationPrincipal Jwt jwt) {
+    Long tendererId = getUserId(jwt);
 
     log.info("Checking if tenderer ID: {} has bid for tender ID: {}", tendererId, tenderId);
     boolean hasBid = bidService.hasTendererBidForTender(tenderId, tendererId);
     return ResponseEntity.ok(hasBid);
   }
-}
 
+  private Long resolveTendererId(Long requestedTendererId, Jwt jwt) {
+    Long authenticatedUserId = getUserId(jwt);
+    if (hasRole(jwt, "ROLE_TENDERER")) {
+      return authenticatedUserId;
+    }
+    return requestedTendererId != null ? requestedTendererId : authenticatedUserId;
+  }
+
+  private boolean hasRole(Jwt jwt, String role) {
+    Object rolesClaim = jwt.getClaim("roles");
+    if (rolesClaim instanceof Iterable<?> iterable) {
+      for (Object item : iterable) {
+        if (role.equals(String.valueOf(item))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private Long getUserId(Jwt jwt) {
+    Object userIdClaim = jwt.getClaim("userId");
+    if (userIdClaim instanceof Number number) {
+      return number.longValue();
+    }
+    if (userIdClaim != null) {
+      return Long.parseLong(userIdClaim.toString());
+    }
+    return Long.parseLong(jwt.getSubject());
+  }
+}

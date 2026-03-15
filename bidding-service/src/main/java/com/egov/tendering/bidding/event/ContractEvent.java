@@ -19,6 +19,7 @@ public class ContractEvent {
     private String contractReference;
     private Long tenderId;
     private Long bidId;
+    private Long bidderId;
     private Double contractValue;
     private LocalDateTime startDate;
     private LocalDateTime endDate;

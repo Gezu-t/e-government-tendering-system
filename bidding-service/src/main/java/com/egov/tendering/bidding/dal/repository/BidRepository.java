@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface BidRepository extends JpaRepository<Bid, Long> {
@@ -21,6 +22,8 @@ public interface BidRepository extends JpaRepository<Bid, Long> {
     Page<Bid> findByTenderId(Long tenderId, Pageable pageable);
 
     boolean existsByTenderIdAndTendererId(Long tenderId, Long tendererId);
+
+    Optional<Bid> findByTenderIdAndTendererId(Long tenderId, Long tendererId);
 
     /**
      * Check if a bid exists for a specific tender ID.
