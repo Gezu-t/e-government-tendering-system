@@ -19,6 +19,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -79,10 +80,15 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByUsernameOrEmail(username, username)
                 .orElseThrow(() -> new UserNotFoundException("User not found with username or email: " + username));
 
+        // Build full authority list: role + all mapped permissions
+        List<String> authorities = new ArrayList<>();
+        authorities.add("ROLE_" + user.getRole().name());
+        user.getRole().getPermissions().forEach(p -> authorities.add(p.name()));
+
         return tokenProvider.generateToken(
                 user.getUsername(),
                 user.getId(),
-                List.of("ROLE_" + user.getRole().name())
+                authorities
         );
     }
 

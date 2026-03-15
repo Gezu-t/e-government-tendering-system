@@ -38,13 +38,21 @@ public class JwtTokenProvider {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
-        String authorities = authentication.getAuthorities().stream()
+        // "roles" claim includes ROLE_* + permissions for downstream services
+        String allAuthorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.joining(","));
+
+        // Separate permissions claim for fine-grained access control
+        String permissions = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(a -> !a.startsWith("ROLE_"))
                 .collect(Collectors.joining(","));
 
         return Jwts.builder()
                 .setSubject(userPrincipal.getUsername())
-                .claim("roles", authorities)
+                .claim("roles", allAuthorities)
+                .claim("permissions", permissions)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS512)
@@ -63,9 +71,14 @@ public class JwtTokenProvider {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
+        String permissions = authorities.stream()
+                .filter(a -> !a.startsWith("ROLE_"))
+                .collect(Collectors.joining(","));
+
         JwtBuilder builder = Jwts.builder()
                 .setSubject(username)
                 .claim("roles", String.join(",", authorities))
+                .claim("permissions", permissions)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS512);
