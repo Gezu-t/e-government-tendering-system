@@ -1,5 +1,6 @@
 package com.egov.tendering.bidding.controller;
 
+import com.egov.tendering.bidding.config.JwtUserIdExtractor;
 
 import com.egov.tendering.bidding.dal.dto.BidClarificationDTO;
 import com.egov.tendering.bidding.service.BidClarificationService;
@@ -31,6 +32,7 @@ import java.util.List;
 public class BidClarificationController {
 
     private final BidClarificationService clarificationService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     @GetMapping("/{bidId}/clarifications")
     @Operation(summary = "Get all clarifications for a bid",
@@ -105,14 +107,7 @@ public class BidClarificationController {
     }
 
     private Long getUserId(Jwt jwt) {
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) {
-            return number.longValue();
-        }
-        if (userIdClaim != null) {
-            return Long.parseLong(userIdClaim.toString());
-        }
-        return Long.parseLong(jwt.getSubject());
+        return jwtUserIdExtractor.requireUserId(jwt);
     }
 
     // Request/Response DTOs

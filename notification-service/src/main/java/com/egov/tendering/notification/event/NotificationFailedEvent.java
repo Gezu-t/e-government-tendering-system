@@ -14,6 +14,7 @@ import lombok.experimental.SuperBuilder;
 public class NotificationFailedEvent extends NotificationEvent {
     private String channel;
     private String recipient;
+    private Long recipientUserId;
     private String errorMessage;
     private Integer retryCount;
 }

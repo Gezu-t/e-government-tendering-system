@@ -18,7 +18,8 @@ public interface ContractService {
 
   Page<ContractDTO> getContractsByBidderId(Long bidderId, Pageable pageable);
 
-  Page<ContractDTO> searchContracts(String title, ContractStatus status, Long tenderId, Long bidderId, Pageable pageable);
+  Page<ContractDTO> searchContracts(String title, ContractStatus status, Long tenderId, Long bidderId,
+                                    String username, boolean admin, Pageable pageable);
 
   ContractDTO updateContractStatus(Long contractId, ContractStatus newStatus, String username);
 

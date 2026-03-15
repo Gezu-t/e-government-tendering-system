@@ -1,5 +1,6 @@
 package com.egov.tendering.evaluation.controller;
 
+import com.egov.tendering.evaluation.config.JwtUserIdExtractor;
 import com.egov.tendering.evaluation.dal.dto.EvaluationDTO;
 import com.egov.tendering.evaluation.dal.dto.EvaluationRequest;
 import com.egov.tendering.evaluation.dal.model.EvaluationStatus;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class EvaluationController {
 
     private final EvaluationService evaluationService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     @PostMapping("/tenders/{tenderId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
@@ -65,13 +67,6 @@ public class EvaluationController {
     }
 
     private Long getUserId(Jwt jwt) {
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) {
-            return number.longValue();
-        }
-        if (userIdClaim != null) {
-            return Long.parseLong(userIdClaim.toString());
-        }
-        return Long.parseLong(jwt.getSubject());
+        return jwtUserIdExtractor.requireUserId(jwt);
     }
 }

@@ -1,5 +1,6 @@
 package com.egov.tendering.contract.controller;
 
+import com.egov.tendering.contract.config.JwtUserIdExtractor;
 import com.egov.tendering.contract.dal.dto.ContractAmendmentDTO;
 import com.egov.tendering.contract.dal.dto.ContractAmendmentRequest;
 import com.egov.tendering.contract.service.ContractAmendmentService;
@@ -22,6 +23,7 @@ import java.util.List;
 public class ContractAmendmentController {
 
     private final ContractAmendmentService amendmentService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'TENDEREE')")
@@ -67,9 +69,6 @@ public class ContractAmendmentController {
     }
 
     private Long getUserId(Jwt jwt) {
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) return number.longValue();
-        if (userIdClaim != null) return Long.parseLong(userIdClaim.toString());
-        return Long.parseLong(jwt.getSubject());
+        return jwtUserIdExtractor.requireUserId(jwt);
     }
 }

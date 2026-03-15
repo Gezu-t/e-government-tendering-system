@@ -1,5 +1,6 @@
 package com.egov.tendering.bidding.controller;
 
+import com.egov.tendering.bidding.config.JwtUserIdExtractor;
 import com.egov.tendering.bidding.dal.dto.BidDTO;
 import com.egov.tendering.bidding.dal.dto.BidVersionDTO;
 import com.egov.tendering.bidding.service.BidVersionService;
@@ -22,6 +23,7 @@ import java.util.List;
 public class BidVersionController {
 
     private final BidVersionService bidVersionService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR') or @bidAccessSecurityUtil.isBidOwner(#bidId)")
@@ -55,13 +57,6 @@ public class BidVersionController {
     }
 
     private Long getUserId(Jwt jwt) {
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) {
-            return number.longValue();
-        }
-        if (userIdClaim != null) {
-            return Long.parseLong(userIdClaim.toString());
-        }
-        return Long.parseLong(jwt.getSubject());
+        return jwtUserIdExtractor.requireUserId(jwt);
     }
 }

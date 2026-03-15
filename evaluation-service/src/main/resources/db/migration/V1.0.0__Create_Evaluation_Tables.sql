@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS tender_rankings (
     tender_id BIGINT NOT NULL,
     bid_id BIGINT NOT NULL,
     final_score DECIMAL(10,2) NOT NULL,
-    rank INT NULL,
+    ranking_position INT NULL,
     is_winner BIT(1) NULL,
     created_at DATETIME(6) NOT NULL,
     updated_at DATETIME(6) NOT NULL,
@@ -70,7 +70,7 @@ CREATE INDEX idx_criteria_scores_eval_criteria ON criteria_scores (evaluation_id
 CREATE INDEX idx_committee_reviews_tender_id ON committee_reviews (tender_id);
 CREATE INDEX idx_committee_reviews_member_id ON committee_reviews (committee_member_id);
 CREATE INDEX idx_committee_reviews_tender_status ON committee_reviews (tender_id, status);
-CREATE INDEX idx_tender_rankings_tender_rank ON tender_rankings (tender_id, rank);
+CREATE INDEX idx_tender_rankings_tender_rank ON tender_rankings (tender_id, ranking_position);
 CREATE INDEX idx_tender_rankings_tender_winner ON tender_rankings (tender_id, is_winner);
 CREATE INDEX idx_allocation_results_tender_id ON allocation_results (tender_id);
 CREATE INDEX idx_allocation_results_bid_id ON allocation_results (bid_id);

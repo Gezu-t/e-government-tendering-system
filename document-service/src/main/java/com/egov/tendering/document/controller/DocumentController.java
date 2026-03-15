@@ -1,5 +1,6 @@
 package com.egov.tendering.document.controller;
 
+import com.egov.tendering.document.config.JwtUserIdExtractor;
 import com.egov.tendering.document.dal.dto.DocumentResponse;
 import com.egov.tendering.document.dal.dto.*;
 import com.egov.tendering.document.service.DocumentService;
@@ -39,6 +40,7 @@ import java.util.Set;
 public class DocumentController {
 
     private final DocumentService documentService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload a new document")
@@ -186,10 +188,7 @@ public class DocumentController {
         if (jwt == null) {
             return identifiers;
         }
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim != null && !userIdClaim.toString().isBlank()) {
-            identifiers.add(userIdClaim.toString());
-        }
+        identifiers.add(jwtUserIdExtractor.getUserIdAsString(jwt));
         if (jwt.getSubject() != null && !jwt.getSubject().isBlank()) {
             identifiers.add(jwt.getSubject());
         }
@@ -198,10 +197,7 @@ public class DocumentController {
 
     private String primaryUserIdentifier(Jwt jwt, Set<String> userIdentifiers) {
         if (jwt != null) {
-            Object userIdClaim = jwt.getClaim("userId");
-            if (userIdClaim != null && !userIdClaim.toString().isBlank()) {
-                return userIdClaim.toString();
-            }
+            return jwtUserIdExtractor.getUserIdAsString(jwt);
         }
         return userIdentifiers.stream().findFirst().orElse("unknown");
     }

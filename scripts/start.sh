@@ -27,6 +27,8 @@ MYSQL_USER="${DB_USERNAME:-root}"
 MYSQL_PASS="${DB_PASSWORD:-password}"
 KAFKA_HOST="${KAFKA_HOST:-localhost}"
 KAFKA_PORT="${KAFKA_PORT:-9092}"
+JWT_ISSUER_URI="${JWT_ISSUER_URI:-http://localhost:9000/auth/realms/egov-tendering}"
+JWT_JWK_SET_URI="${JWT_JWK_SET_URI:-${JWT_ISSUER_URI%/}/protocol/openid-connect/certs}"
 
 # Service definitions: name, port, db_name
 declare -a SERVICES=(
@@ -242,8 +244,16 @@ start_service() {
   local java_opts=(
     "-jar" "$jar_file"
     "--server.port=$port"
-    "--spring.profiles.active=dev"
   )
+
+  if [ "$name" = "config-service" ]; then
+    java_opts+=(
+      "--spring.profiles.active=native"
+      "--spring.cloud.config.server.native.search-locations=file:$PROJECT_ROOT/config-repo"
+    )
+  else
+    java_opts+=("--spring.profiles.active=dev")
+  fi
 
   # Add DB config for services with databases
   if [ -n "$db" ]; then
@@ -259,6 +269,13 @@ start_service() {
   # Add Eureka and Kafka config
   if [ "$name" != "discovery-service" ]; then
     java_opts+=("--eureka.client.service-url.defaultZone=http://localhost:8761/eureka/")
+  fi
+
+  if [ "$name" != "discovery-service" ] && [ "$name" != "config-service" ]; then
+    java_opts+=(
+      "--spring.security.oauth2.resourceserver.jwt.issuer-uri=$JWT_ISSUER_URI"
+      "--spring.security.oauth2.resourceserver.jwt.jwk-set-uri=$JWT_JWK_SET_URI"
+    )
   fi
 
   if [ "$name" != "discovery-service" ] && [ "$name" != "config-service" ] && [ "$name" != "gateway-service" ] && [ "$name" != "document-service" ]; then
@@ -295,26 +312,32 @@ start_services() {
   log_step "Starting Spring Boot Services"
 
   mkdir -p "$PROJECT_ROOT/.pids" "$PROJECT_ROOT/logs"
+  local failed_services=()
 
   # Start in dependency order with waits between tiers
   log_info "--- Tier 1: Discovery Service ---"
-  start_service "discovery-service" "8761" ""
+  start_service "discovery-service" "8761" "" || failed_services+=("discovery-service")
 
   log_info "--- Tier 2: Config Service ---"
-  start_service "config-service" "8888" ""
+  start_service "config-service" "8888" "" || failed_services+=("config-service")
 
   log_info "--- Tier 3: Gateway + User Service ---"
-  start_service "gateway-service" "8080" ""
-  start_service "user-service" "8081" "user_service"
+  start_service "gateway-service" "8080" "" || failed_services+=("gateway-service")
+  start_service "user-service" "8081" "user_service" || failed_services+=("user-service")
 
   log_info "--- Tier 4: Business Services ---"
-  start_service "tender-service" "8082" "tender_service"
-  start_service "bidding-service" "8083" "bidding_service"
-  start_service "contract-service" "8084" "contract_service"
-  start_service "document-service" "8085" "document_service"
-  start_service "notification-service" "8086" "notification_service"
-  start_service "evaluation-service" "8087" "evaluation_service"
-  start_service "audit-service" "8088" "audit_service"
+  start_service "tender-service" "8082" "tender_service" || failed_services+=("tender-service")
+  start_service "bidding-service" "8083" "bidding_service" || failed_services+=("bidding-service")
+  start_service "contract-service" "8084" "contract_service" || failed_services+=("contract-service")
+  start_service "document-service" "8085" "document_service" || failed_services+=("document-service")
+  start_service "notification-service" "8086" "notification_service" || failed_services+=("notification-service")
+  start_service "evaluation-service" "8087" "evaluation_service" || failed_services+=("evaluation-service")
+  start_service "audit-service" "8088" "audit_service" || failed_services+=("audit-service")
+
+  if [ ${#failed_services[@]} -gt 0 ]; then
+    log_warn "Services with startup failures: ${failed_services[*]}"
+    return 1
+  fi
 }
 
 # ============================================================

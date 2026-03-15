@@ -25,6 +25,7 @@ public class DocumentEvent {
     private EntityType entityType;
     private DocumentStatus status;
     private String userId;
+    private Long actorUserId;
     private LocalDateTime timestamp;
     private DocumentEventType eventType;
 }

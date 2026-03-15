@@ -39,6 +39,13 @@ public class TenderServiceImpl implements TenderService {
           TenderStatus.EVALUATION_IN_PROGRESS, EnumSet.of(TenderStatus.EVALUATED, TenderStatus.CANCELLED),
           TenderStatus.EVALUATED, EnumSet.of(TenderStatus.AWARDED, TenderStatus.CANCELLED)
   );
+  private static final List<TenderStatus> PUBLICLY_VISIBLE_STATUSES = List.of(
+          TenderStatus.PUBLISHED,
+          TenderStatus.AMENDED,
+          TenderStatus.CLOSED,
+          TenderStatus.AWARDED,
+          TenderStatus.CANCELLED
+  );
 
   private final TenderRepository tenderRepository;
   private final TenderCriteriaRepository criteriaRepository;
@@ -129,7 +136,13 @@ public class TenderServiceImpl implements TenderService {
   public Page<TenderDTO> searchTenders(String title, TenderStatus status, TenderType type, Pageable pageable) {
     log.info("Searching tenders with title: {}, status: {}, type: {}", title, status, type);
 
-    Page<Tender> tenders = tenderRepository.searchTenders(title, status, type, pageable);
+    if (status != null && !PUBLICLY_VISIBLE_STATUSES.contains(status)) {
+      throw new IllegalArgumentException("Only publicly visible tender statuses can be searched from the public catalogue");
+    }
+
+    Page<Tender> tenders = status != null
+            ? tenderRepository.searchPublicTenders(title, List.of(status), type, pageable)
+            : tenderRepository.searchPublicTenders(title, PUBLICLY_VISIBLE_STATUSES, type, pageable);
     return tenders.map(tenderMapper::toDto);
   }
 

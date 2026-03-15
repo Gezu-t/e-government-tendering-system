@@ -16,6 +16,7 @@ public class ContractSecurityUtil {
 
     private final ContractRepository contractRepository;
     private final ContractMilestoneRepository milestoneRepository;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     public boolean canAccessContract(Long contractId) {
         if (hasRole("ROLE_ADMIN")) {
@@ -42,6 +43,24 @@ public class ContractSecurityUtil {
             return true;
         }
         return hasRole("ROLE_TENDERER") && bidderId != null && bidderId.equals(getCurrentUserId());
+    }
+
+    public boolean canAccessTenderContracts(Long tenderId) {
+        if (hasRole("ROLE_ADMIN")) {
+            return true;
+        }
+
+        if (!hasRole("ROLE_TENDEREE")) {
+            return false;
+        }
+
+        String currentUsername = getCurrentUsername();
+        if (currentUsername == null) {
+            return false;
+        }
+
+        return contractRepository.findByTenderId(tenderId).stream()
+                .allMatch(contract -> currentUsername.equals(contract.getCreatedBy()));
     }
 
     public boolean canAccessMilestone(Long contractId, Long milestoneId) {
@@ -89,16 +108,9 @@ public class ContractSecurityUtil {
             return null;
         }
 
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) {
-            return number.longValue();
-        }
-        if (userIdClaim != null) {
-            return Long.parseLong(userIdClaim.toString());
-        }
         try {
-            return Long.parseLong(jwt.getSubject());
-        } catch (NumberFormatException ex) {
+            return jwtUserIdExtractor.requireUserId(jwt);
+        } catch (RuntimeException ex) {
             return null;
         }
     }

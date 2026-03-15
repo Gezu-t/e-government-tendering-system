@@ -2,6 +2,8 @@ package com.egov.tendering.contract.dal.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -35,10 +37,10 @@ public class ContractMilestone {
   private BigDecimal paymentAmount;
 
   @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.VARCHAR)
   @Column(nullable = false)
   private MilestoneStatus status;
 
   @Column
   private LocalDate completedDate;
 }
-

@@ -14,5 +14,6 @@ import lombok.experimental.SuperBuilder;
 public class NotificationRetryEvent extends NotificationEvent {
     private String channel;
     private String recipient;
+    private Long recipientUserId;
     private Integer retryCount;
 }

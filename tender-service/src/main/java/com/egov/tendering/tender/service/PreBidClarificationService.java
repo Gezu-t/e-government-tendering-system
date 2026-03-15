@@ -10,9 +10,9 @@ public interface PreBidClarificationService {
 
     PreBidClarificationDTO askQuestion(Long tenderId, PreBidQuestionRequest request, Long userId);
 
-    PreBidClarificationDTO answerQuestion(Long clarificationId, PreBidAnswerRequest request, Long userId);
+    PreBidClarificationDTO answerQuestion(Long tenderId, Long clarificationId, PreBidAnswerRequest request, Long userId);
 
-    PreBidClarificationDTO rejectQuestion(Long clarificationId, Long userId);
+    PreBidClarificationDTO rejectQuestion(Long tenderId, Long clarificationId, Long userId);
 
     List<PreBidClarificationDTO> getPublicClarifications(Long tenderId);
 

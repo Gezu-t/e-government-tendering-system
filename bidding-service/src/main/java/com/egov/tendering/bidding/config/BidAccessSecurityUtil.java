@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 public class BidAccessSecurityUtil {
 
     private final BidRepository bidRepository;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     public boolean canAccessBid(Long bidId) {
         if (hasPrivilegedRole()) {
@@ -49,14 +50,11 @@ public class BidAccessSecurityUtil {
 
         Object principal = authentication.getPrincipal();
         if (principal instanceof Jwt jwt) {
-            Object userIdClaim = jwt.getClaim("userId");
-            if (userIdClaim instanceof Number number) {
-                return number.longValue();
+            try {
+                return jwtUserIdExtractor.requireUserId(jwt);
+            } catch (RuntimeException ex) {
+                return null;
             }
-            if (userIdClaim != null) {
-                return Long.parseLong(userIdClaim.toString());
-            }
-            return parseLongOrNull(jwt.getSubject());
         }
 
         return parseLongOrNull(authentication.getName());

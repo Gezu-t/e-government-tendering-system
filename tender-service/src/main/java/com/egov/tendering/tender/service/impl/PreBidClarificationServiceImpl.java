@@ -63,11 +63,13 @@ public class PreBidClarificationServiceImpl implements PreBidClarificationServic
 
     @Override
     @Transactional
-    public PreBidClarificationDTO answerQuestion(Long clarificationId, PreBidAnswerRequest request, Long userId) {
+    public PreBidClarificationDTO answerQuestion(Long tenderId, Long clarificationId, PreBidAnswerRequest request, Long userId) {
         log.info("User {} answering clarification {}", userId, clarificationId);
 
         PreBidClarification clarification = clarificationRepository.findById(clarificationId)
                 .orElseThrow(() -> new EntityNotFoundException("Clarification not found: " + clarificationId));
+
+        validateClarificationTender(clarification, tenderId);
 
         if (clarification.getStatus() != ClarificationStatus.PENDING) {
             throw new IllegalStateException("Only pending clarifications can be answered");
@@ -90,11 +92,17 @@ public class PreBidClarificationServiceImpl implements PreBidClarificationServic
 
     @Override
     @Transactional
-    public PreBidClarificationDTO rejectQuestion(Long clarificationId, Long userId) {
+    public PreBidClarificationDTO rejectQuestion(Long tenderId, Long clarificationId, Long userId) {
         log.info("User {} rejecting clarification {}", userId, clarificationId);
 
         PreBidClarification clarification = clarificationRepository.findById(clarificationId)
                 .orElseThrow(() -> new EntityNotFoundException("Clarification not found: " + clarificationId));
+
+        validateClarificationTender(clarification, tenderId);
+
+        if (clarification.getStatus() != ClarificationStatus.PENDING) {
+            throw new IllegalStateException("Only pending clarifications can be rejected");
+        }
 
         clarification.setStatus(ClarificationStatus.REJECTED);
         clarification.setAnsweredBy(userId);
@@ -135,6 +143,12 @@ public class PreBidClarificationServiceImpl implements PreBidClarificationServic
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    private void validateClarificationTender(PreBidClarification clarification, Long tenderId) {
+        if (!clarification.getTenderId().equals(tenderId)) {
+            throw new IllegalArgumentException("Clarification does not belong to tender " + tenderId);
+        }
     }
 
     private PreBidClarificationDTO toDTO(PreBidClarification c) {

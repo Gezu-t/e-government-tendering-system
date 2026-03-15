@@ -3,7 +3,9 @@ package com.egov.tendering.notification.dal.model;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,6 +22,7 @@ public class Notification {
   private Long id;
 
   @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.VARCHAR)
   @Column(nullable = false)
   private NotificationType type;
 
@@ -36,6 +39,7 @@ public class Notification {
   private List<String> recipients;
 
   @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.VARCHAR)
   @Column(nullable = false)
   private NotificationStatus status;
 
@@ -48,7 +52,7 @@ public class Notification {
   @Column
   private LocalDateTime deliveredAt;
 
-  @Column(nullable = false)
+  @Column(name = "is_read", nullable = false)
   private boolean read;
 
   @Column

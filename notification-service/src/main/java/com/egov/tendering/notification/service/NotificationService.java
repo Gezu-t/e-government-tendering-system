@@ -217,12 +217,17 @@ public class NotificationService {
     }
 
     private Notification createNotification(NotificationType type, String entityId, String subject, String message, List<String> recipients) {
+        List<String> normalizedRecipients = normalizeRecipientList(recipients);
+        if (normalizedRecipients.isEmpty()) {
+            throw new IllegalArgumentException("Notification recipients cannot be empty");
+        }
+
         Notification notification = new Notification();
         notification.setType(type);
         notification.setEntityId(entityId);
         notification.setSubject(subject);
         notification.setMessage(message);
-        notification.setRecipients(recipients);
+        notification.setRecipients(normalizedRecipients);
         notification.setCreatedAt(LocalDateTime.now());
         notification.setRead(false);
         notification.setStatus(NotificationStatus.PENDING);
@@ -242,6 +247,10 @@ public class NotificationService {
             }
         }
         return identifiers;
+    }
+
+    private List<String> normalizeRecipientList(Collection<String> recipients) {
+        return normalizeIdentifiers(recipients).stream().toList();
     }
 
     private void deliverNotification(Notification notification) {

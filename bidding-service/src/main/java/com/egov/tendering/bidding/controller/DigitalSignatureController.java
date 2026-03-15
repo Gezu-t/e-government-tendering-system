@@ -1,5 +1,6 @@
 package com.egov.tendering.bidding.controller;
 
+import com.egov.tendering.bidding.config.JwtUserIdExtractor;
 import com.egov.tendering.bidding.dal.dto.DigitalSignatureDTO;
 import com.egov.tendering.bidding.service.DigitalSignatureService;
 import jakarta.validation.constraints.NotBlank;
@@ -21,6 +22,7 @@ import java.util.List;
 public class DigitalSignatureController {
 
     private final DigitalSignatureService signatureService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     @PostMapping("/{entityType}/{entityId}/sign")
     @PreAuthorize("isAuthenticated()")
@@ -77,13 +79,6 @@ public class DigitalSignatureController {
     }
 
     private Long getUserId(Jwt jwt) {
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) {
-            return number.longValue();
-        }
-        if (userIdClaim != null) {
-            return Long.parseLong(userIdClaim.toString());
-        }
-        return Long.parseLong(jwt.getSubject());
+        return jwtUserIdExtractor.requireUserId(jwt);
     }
 }

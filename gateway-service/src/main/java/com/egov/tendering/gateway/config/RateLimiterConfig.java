@@ -2,6 +2,7 @@ package com.egov.tendering.gateway.config;
 
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import reactor.core.publisher.Mono;
@@ -27,6 +28,7 @@ public class RateLimiterConfig {
      * Allows 10 requests per second with a burst of 20 requests
      */
     @Bean
+    @Primary
     public RedisRateLimiter defaultRedisRateLimiter() {
         return new RedisRateLimiter(10, 20);
     }

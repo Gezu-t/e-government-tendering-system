@@ -1,5 +1,6 @@
 package com.egov.tendering.bidding.controller;
 
+import com.egov.tendering.bidding.config.JwtUserIdExtractor;
 import com.egov.tendering.bidding.dal.dto.BidSecurityDTO;
 import com.egov.tendering.bidding.dal.dto.BidSecurityRequest;
 import com.egov.tendering.bidding.dal.model.SecurityStatus;
@@ -32,6 +33,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class BidSecurityController {
 
     private final BidSecurityService bidSecurityService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     @GetMapping("/{bidId}/security")
     @Operation(summary = "Get bid security for a bid",
@@ -105,14 +107,7 @@ public class BidSecurityController {
     }
 
     private Long getUserId(Jwt jwt) {
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) {
-            return number.longValue();
-        }
-        if (userIdClaim != null) {
-            return Long.parseLong(userIdClaim.toString());
-        }
-        return Long.parseLong(jwt.getSubject());
+        return jwtUserIdExtractor.requireUserId(jwt);
     }
 
     // Request DTOs

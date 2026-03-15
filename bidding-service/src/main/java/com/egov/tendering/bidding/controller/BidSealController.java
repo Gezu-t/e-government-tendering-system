@@ -1,5 +1,6 @@
 package com.egov.tendering.bidding.controller;
 
+import com.egov.tendering.bidding.config.JwtUserIdExtractor;
 import com.egov.tendering.bidding.dal.dto.BidSealDTO;
 import com.egov.tendering.bidding.service.BidSealingService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import java.util.List;
 public class BidSealController {
 
     private final BidSealingService bidSealingService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     @PostMapping("/{bidId}/seal")
     @PreAuthorize("hasAnyRole('ADMIN', 'TENDEREE')")
@@ -71,13 +73,6 @@ public class BidSealController {
     }
 
     private Long getUserId(Jwt jwt) {
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) {
-            return number.longValue();
-        }
-        if (userIdClaim != null) {
-            return Long.parseLong(userIdClaim.toString());
-        }
-        return Long.parseLong(jwt.getSubject());
+        return jwtUserIdExtractor.requireUserId(jwt);
     }
 }

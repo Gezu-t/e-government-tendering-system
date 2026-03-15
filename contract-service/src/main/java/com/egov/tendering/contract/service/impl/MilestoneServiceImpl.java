@@ -4,6 +4,7 @@ import com.egov.tendering.contract.dal.dto.ContractMilestoneDTO;
 import com.egov.tendering.contract.dal.mapper.ContractMapper;
 import com.egov.tendering.contract.dal.model.Contract;
 import com.egov.tendering.contract.dal.model.ContractMilestone;
+import com.egov.tendering.contract.dal.model.ContractStatus;
 import com.egov.tendering.contract.dal.model.MilestoneStatus;
 import com.egov.tendering.contract.dal.repository.ContractMilestoneRepository;
 import com.egov.tendering.contract.dal.repository.ContractRepository;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 
@@ -66,6 +68,10 @@ public class MilestoneServiceImpl implements MilestoneService {
         Contract contract = contractRepository.findById(contractId)
                 .orElseThrow(() -> new ContractNotFoundException("Contract not found with ID: " + contractId));
 
+        validateMilestoneCanBeManaged(contract);
+        validateMilestoneDueDate(contract, milestoneDTO.getDueDate());
+        validateMilestoneBudget(contract, milestoneDTO.getPaymentAmount(), null);
+
         ContractMilestone milestone = contractMapper.toMilestoneEntity(milestoneDTO);
         milestone.setContract(contract);
         milestone.setStatus(MilestoneStatus.PENDING);
@@ -100,6 +106,10 @@ public class MilestoneServiceImpl implements MilestoneService {
             throw new IllegalArgumentException("Milestone does not belong to contract " + contractId);
         }
 
+        if (milestone.getContract().getStatus() != ContractStatus.ACTIVE) {
+            throw new IllegalStateException("Only milestones for ACTIVE contracts can be completed");
+        }
+
         if (milestone.getStatus() != MilestoneStatus.PENDING && milestone.getStatus() != MilestoneStatus.OVERDUE) {
             throw new IllegalStateException("Only pending or overdue milestones can be completed");
         }
@@ -131,6 +141,9 @@ public class MilestoneServiceImpl implements MilestoneService {
 
         int updatedCount = 0;
         for (ContractMilestone milestone : overdueMilestones) {
+            if (milestone.getContract().getStatus() != ContractStatus.ACTIVE) {
+                continue;
+            }
             log.info("Marking milestone {} as overdue", milestone.getId());
             milestone.setStatus(MilestoneStatus.OVERDUE);
             milestoneRepository.save(milestone);
@@ -145,5 +158,33 @@ public class MilestoneServiceImpl implements MilestoneService {
         }
 
         log.info("Marked {} milestones as overdue", updatedCount);
+    }
+
+    private void validateMilestoneCanBeManaged(Contract contract) {
+        if (contract.getStatus() == ContractStatus.COMPLETED
+                || contract.getStatus() == ContractStatus.TERMINATED
+                || contract.getStatus() == ContractStatus.CANCELLED) {
+            throw new IllegalStateException("Milestones cannot be changed for contracts in status " + contract.getStatus());
+        }
+    }
+
+    private void validateMilestoneDueDate(Contract contract, LocalDate dueDate) {
+        if (dueDate.isBefore(contract.getStartDate()) || dueDate.isAfter(contract.getEndDate())) {
+            throw new IllegalArgumentException("Milestone due date must fall within the contract start and end dates");
+        }
+    }
+
+    private void validateMilestoneBudget(Contract contract, BigDecimal paymentAmount, Long milestoneIdToExclude) {
+        BigDecimal existingBudget = milestoneRepository.findByContractId(contract.getId()).stream()
+                .filter(milestone -> milestoneIdToExclude == null || !milestoneIdToExclude.equals(milestone.getId()))
+                .map(ContractMilestone::getPaymentAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal requestedPayment = paymentAmount == null ? BigDecimal.ZERO : paymentAmount;
+        BigDecimal totalMilestoneBudget = existingBudget.add(requestedPayment);
+        if (totalMilestoneBudget.compareTo(contract.getTotalValue()) > 0) {
+            throw new IllegalArgumentException("Total milestone payments cannot exceed the contract total value");
+        }
     }
 }

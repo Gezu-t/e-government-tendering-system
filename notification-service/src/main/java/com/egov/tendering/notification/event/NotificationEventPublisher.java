@@ -40,6 +40,7 @@ public class NotificationEventPublisher {
                     .timestamp(LocalDateTime.now())
                     .notificationId(notification.getId())
                     .recipient(recipient)
+                    .recipientUserId(parseUserId(recipient))
                     .subject(notification.getSubject())
                     .content(notification.getMessage())
                     .status(notification.getStatus().name())
@@ -66,6 +67,7 @@ public class NotificationEventPublisher {
                     .timestamp(LocalDateTime.now())
                     .notificationId(notification.getId())
                     .recipient(recipient)
+                    .recipientUserId(parseUserId(recipient))
                     .content(notification.getMessage())
                     .status(notification.getStatus().name())
                     .build();
@@ -91,6 +93,7 @@ public class NotificationEventPublisher {
                     .timestamp(LocalDateTime.now())
                     .notificationId(notification.getId())
                     .recipient(recipient)
+                    .recipientUserId(parseUserId(recipient))
                     .title(notification.getSubject())
                     .content(notification.getMessage())
                     .status(notification.getStatus().name())
@@ -110,22 +113,25 @@ public class NotificationEventPublisher {
             return;
         }
 
-        NotificationFailedEvent event = NotificationFailedEvent.builder()
-                .eventId(generateEventId())
-                .eventType(NOTIFICATION_FAILED)
-                .timestamp(LocalDateTime.now())
-                .notificationId(notification.getId())
-                .channel(mapChannel(notification.getType().getChannel()))
-                .recipient(String.join(",", notification.getRecipients()))
-                .errorMessage(errorMessage)
-                .retryCount(notification.getRetryCount() != null ? notification.getRetryCount() : 0)
-                .build();
+        for (String recipient : notification.getRecipients()) {
+            NotificationFailedEvent event = NotificationFailedEvent.builder()
+                    .eventId(generateEventId())
+                    .eventType(NOTIFICATION_FAILED)
+                    .timestamp(LocalDateTime.now())
+                    .notificationId(notification.getId())
+                    .channel(mapChannel(notification.getType().getChannel()))
+                    .recipient(recipient)
+                    .recipientUserId(parseUserId(recipient))
+                    .errorMessage(errorMessage)
+                    .retryCount(notification.getRetryCount() != null ? notification.getRetryCount() : 0)
+                    .build();
 
-        sendEventWithErrorHandling(
-                notification.getId() + "_failed",
-                event,
-                "notification failed"
-        );
+            sendEventWithErrorHandling(
+                    notification.getId() + "_failed_" + recipient,
+                    event,
+                    "notification failed"
+            );
+        }
     }
 
     public void publishNotificationRetryEvent(Notification notification) {
@@ -134,21 +140,24 @@ public class NotificationEventPublisher {
             return;
         }
 
-        NotificationRetryEvent event = NotificationRetryEvent.builder()
-                .eventId(generateEventId())
-                .eventType(NOTIFICATION_RETRY)
-                .timestamp(LocalDateTime.now())
-                .notificationId(notification.getId())
-                .channel(mapChannel(notification.getType().getChannel()))
-                .recipient(String.join(",", notification.getRecipients()))
-                .retryCount(notification.getRetryCount() != null ? notification.getRetryCount() : 0)
-                .build();
+        for (String recipient : notification.getRecipients()) {
+            NotificationRetryEvent event = NotificationRetryEvent.builder()
+                    .eventId(generateEventId())
+                    .eventType(NOTIFICATION_RETRY)
+                    .timestamp(LocalDateTime.now())
+                    .notificationId(notification.getId())
+                    .channel(mapChannel(notification.getType().getChannel()))
+                    .recipient(recipient)
+                    .recipientUserId(parseUserId(recipient))
+                    .retryCount(notification.getRetryCount() != null ? notification.getRetryCount() : 0)
+                    .build();
 
-        sendEventWithErrorHandling(
-                notification.getId() + "_retry_" + notification.getRetryCount(),
-                event,
-                "notification retry"
-        );
+            sendEventWithErrorHandling(
+                    notification.getId() + "_retry_" + notification.getRetryCount() + "_" + recipient,
+                    event,
+                    "notification retry"
+            );
+        }
     }
 
     private <T extends NotificationEvent> void sendEventWithErrorHandling(
@@ -182,6 +191,17 @@ public class NotificationEventPublisher {
 
     private Long generateEventId() {
         return eventIdCounter.getAndIncrement();
+    }
+
+    private Long parseUserId(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     // Map NotificationChannel enum to String

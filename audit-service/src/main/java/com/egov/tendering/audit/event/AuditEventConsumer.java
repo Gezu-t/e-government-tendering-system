@@ -27,7 +27,10 @@ public class AuditEventConsumer {
             "tenderId", "contractId", "bidId", "evaluationId", "reviewId", "entityId", "id"
     );
     private static final List<String> USER_ID_KEYS = List.of(
-            "userId", "evaluatorId", "committeeMemberId", "tendererId", "bidderId"
+            "actorUserId", "recipientUserId", "userId", "evaluatorId", "committeeMemberId", "tendererId", "bidderId", "recipient"
+    );
+    private static final List<String> USERNAME_KEYS = List.of(
+            "username", "createdBy", "updatedBy", "recipient", "userId"
     );
 
     @KafkaListener(topics = "${app.kafka.topics.tender-events:tender-events}", groupId = "${spring.application.name}")
@@ -71,8 +74,9 @@ public class AuditEventConsumer {
             Map<String, Object> eventData = toEventData(event);
             String eventType = extractEventType(eventData, event);
             String details = toJson(event);
+            Long userId = extractUserId(eventData);
             AuditLog auditLog = AuditLog.builder()
-                    .username("system")
+                    .username(extractUsername(eventData, userId))
                     .actionType(extractActionType(eventType))
                     .eventType(eventType)
                     .entityType(entityType)
@@ -83,7 +87,7 @@ public class AuditEventConsumer {
                     .sourceIp("internal")
                     .success(true)
                     .timestamp(LocalDateTime.now())
-                    .userId(extractUserId(eventData))
+                    .userId(userId)
                     .module(module)
                     .build();
             auditLogRepository.save(auditLog);
@@ -135,6 +139,30 @@ public class AuditEventConsumer {
             }
         }
         return null;
+    }
+
+    private String extractUsername(Map<String, Object> eventData, Long userId) {
+        for (String key : USERNAME_KEYS) {
+            Object value = eventData.get(key);
+            if (value == null) {
+                continue;
+            }
+
+            String stringValue = value.toString();
+            if (stringValue.isBlank()) {
+                continue;
+            }
+
+            if (!"recipient".equals(key) || asLong(value) == null) {
+                return stringValue;
+            }
+        }
+
+        if (userId != null) {
+            return userId.toString();
+        }
+
+        return "system";
     }
 
     private Long asLong(Object value) {

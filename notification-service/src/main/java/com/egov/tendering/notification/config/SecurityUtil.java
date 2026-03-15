@@ -23,6 +23,7 @@ import java.util.Set;
 public class SecurityUtil {
 
     private final NotificationRepository notificationRepository;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     /**
      * Checks if the current authenticated user is the same as the specified user ID.
@@ -70,9 +71,9 @@ public class SecurityUtil {
 
         Object principal = authentication.getPrincipal();
         if (principal instanceof Jwt jwt) {
-            Object userIdClaim = jwt.getClaim("userId");
-            if (userIdClaim != null) {
-                identifiers.add(userIdClaim.toString());
+            try {
+                identifiers.add(jwtUserIdExtractor.getUserIdAsString(jwt));
+            } catch (RuntimeException ignored) {
             }
             if (jwt.getSubject() != null) {
                 identifiers.add(jwt.getSubject());

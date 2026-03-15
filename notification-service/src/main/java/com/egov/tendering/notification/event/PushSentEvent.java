@@ -13,6 +13,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public class PushSentEvent extends NotificationEvent {
     private String recipient;
+    private Long recipientUserId;
     private String title;
     private String content;
     private String status;

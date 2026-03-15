@@ -1,5 +1,6 @@
 package com.egov.tendering.evaluation.controller;
 
+import com.egov.tendering.evaluation.config.JwtUserIdExtractor;
 import com.egov.tendering.evaluation.dal.dto.CommitteeReviewDTO;
 import com.egov.tendering.evaluation.dal.dto.CommitteeApprovalPolicyDTO;
 import com.egov.tendering.evaluation.dal.dto.CommitteeApprovalPolicyRequest;
@@ -28,6 +29,7 @@ import java.util.List;
 public class CommitteeReviewController {
 
     private final CommitteeReviewService reviewService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     /**
      * Creates a new committee review for a tender.
@@ -191,13 +193,6 @@ public class CommitteeReviewController {
     }
 
     private Long getUserId(Jwt jwt) {
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) {
-            return number.longValue();
-        }
-        if (userIdClaim != null) {
-            return Long.parseLong(userIdClaim.toString());
-        }
-        return Long.parseLong(jwt.getSubject());
+        return jwtUserIdExtractor.requireUserId(jwt);
     }
 }

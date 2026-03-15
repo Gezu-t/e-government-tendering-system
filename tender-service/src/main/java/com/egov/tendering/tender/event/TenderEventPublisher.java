@@ -32,6 +32,7 @@ public class TenderEventPublisher {
                 .timestamp(LocalDateTime.now())
                 .tenderId(tender.getId())
                 .tenderTitle(tender.getTitle())
+                .actorUserId(tender.getTendereeId())
                 .tendereeId(tender.getTendereeId())
                 .type(tender.getType())
                 .submissionDeadline(tender.getSubmissionDeadline())
@@ -49,6 +50,7 @@ public class TenderEventPublisher {
                 .timestamp(LocalDateTime.now())
                 .tenderId(tender.getId())
                 .tenderTitle(tender.getTitle())
+                .actorUserId(tender.getTendereeId())
                 .oldStatus(oldStatus)
                 .newStatus(tender.getStatus())
                 .build();
@@ -64,6 +66,7 @@ public class TenderEventPublisher {
                 .timestamp(LocalDateTime.now())
                 .tenderId(tender.getId())
                 .tenderTitle(tender.getTitle())
+                .actorUserId(tender.getTendereeId())
                 .submissionDeadline(tender.getSubmissionDeadline())
                 .build();
 
@@ -80,6 +83,7 @@ public class TenderEventPublisher {
                 .timestamp(LocalDateTime.now())
                 .tenderId(tender.getId())
                 .tenderTitle(tender.getTitle())
+                .actorUserId(tender.getTendereeId())
                 .expired(expired)
                 .build();
 
@@ -94,6 +98,7 @@ public class TenderEventPublisher {
                 .timestamp(LocalDateTime.now())
                 .tenderId(tender.getId())
                 .tenderTitle(tender.getTitle())
+                .actorUserId(amendment.getAmendedBy())
                 .amendmentNumber(amendment.getAmendmentNumber())
                 .reason(amendment.getReason())
                 .previousDeadline(amendment.getPreviousDeadline())

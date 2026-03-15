@@ -20,4 +20,5 @@ public abstract class TenderEvent {
     private LocalDateTime timestamp;
     private Long tenderId;
     private String tenderTitle;
+    private Long actorUserId;
 }

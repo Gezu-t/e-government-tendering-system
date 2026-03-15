@@ -48,7 +48,7 @@ public class ContractController {
   }
 
   @GetMapping("/tender/{tenderId}")
-  @PreAuthorize("hasAnyRole('ADMIN', 'TENDEREE')")
+  @PreAuthorize("@contractSecurityUtil.canAccessTenderContracts(#tenderId)")
   public ResponseEntity<List<ContractDTO>> getContractsByTenderId(@PathVariable Long tenderId) {
     log.info("Received request to get contracts by tender ID: {}", tenderId);
     List<ContractDTO> contracts = contractService.getContractsByTenderId(tenderId);
@@ -73,11 +73,19 @@ public class ContractController {
           @RequestParam(required = false) ContractStatus status,
           @RequestParam(required = false) Long tenderId,
           @RequestParam(required = false) Long bidderId,
+          @AuthenticationPrincipal Jwt jwt,
           @PageableDefault(size = 10) Pageable pageable) {
 
     log.info("Received request to search contracts with title: {}, status: {}, tenderId: {}, bidderId: {}",
             title, status, tenderId, bidderId);
-    Page<ContractDTO> contracts = contractService.searchContracts(title, status, tenderId, bidderId, pageable);
+    Page<ContractDTO> contracts = contractService.searchContracts(
+            title,
+            status,
+            tenderId,
+            bidderId,
+            jwt.getSubject(),
+            hasRole(jwt, "ROLE_ADMIN"),
+            pageable);
     return ResponseEntity.ok(contracts);
   }
 
@@ -129,5 +137,17 @@ public class ContractController {
     log.info("Received request to terminate contract with ID: {}", contractId);
     ContractDTO terminatedContract = contractService.terminateContract(contractId, reason, username);
     return ResponseEntity.ok(terminatedContract);
+  }
+
+  private boolean hasRole(Jwt jwt, String role) {
+    Object roles = jwt.getClaim("roles");
+    if (roles instanceof Iterable<?> iterable) {
+      for (Object value : iterable) {
+        if (role.equals(String.valueOf(value))) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

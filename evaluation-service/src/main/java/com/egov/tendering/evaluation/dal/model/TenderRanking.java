@@ -30,6 +30,7 @@ public class TenderRanking {
     @Column(name = "final_score", nullable = false, precision = 10, scale = 2)
     private BigDecimal finalScore;
 
+    @Column(name = "ranking_position")
     private Integer rank;
 
     @Column(name = "is_winner")

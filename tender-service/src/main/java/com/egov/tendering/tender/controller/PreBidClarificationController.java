@@ -1,5 +1,6 @@
 package com.egov.tendering.tender.controller;
 
+import com.egov.tendering.tender.config.JwtUserIdExtractor;
 import com.egov.tendering.tender.dal.dto.PreBidAnswerRequest;
 import com.egov.tendering.tender.dal.dto.PreBidClarificationDTO;
 import com.egov.tendering.tender.dal.dto.PreBidQuestionRequest;
@@ -23,6 +24,7 @@ import java.util.List;
 public class PreBidClarificationController {
 
     private final PreBidClarificationService clarificationService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('TENDERER', 'ADMIN')")
@@ -37,7 +39,7 @@ public class PreBidClarificationController {
     }
 
     @PutMapping("/{clarificationId}/answer")
-    @PreAuthorize("hasAnyRole('TENDEREE', 'ADMIN')")
+    @PreAuthorize("@tenderSecurityUtil.canManageClarification(#tenderId, #clarificationId)")
     public ResponseEntity<PreBidClarificationDTO> answerQuestion(
             @PathVariable Long tenderId,
             @PathVariable Long clarificationId,
@@ -45,18 +47,18 @@ public class PreBidClarificationController {
             @AuthenticationPrincipal Jwt jwt) {
         Long userId = getUserId(jwt);
         log.info("User {} answering clarification {} for tender {}", userId, clarificationId, tenderId);
-        PreBidClarificationDTO result = clarificationService.answerQuestion(clarificationId, request, userId);
+        PreBidClarificationDTO result = clarificationService.answerQuestion(tenderId, clarificationId, request, userId);
         return ResponseEntity.ok(result);
     }
 
     @PutMapping("/{clarificationId}/reject")
-    @PreAuthorize("hasAnyRole('TENDEREE', 'ADMIN')")
+    @PreAuthorize("@tenderSecurityUtil.canManageClarification(#tenderId, #clarificationId)")
     public ResponseEntity<PreBidClarificationDTO> rejectQuestion(
             @PathVariable Long tenderId,
             @PathVariable Long clarificationId,
             @AuthenticationPrincipal Jwt jwt) {
         Long userId = getUserId(jwt);
-        PreBidClarificationDTO result = clarificationService.rejectQuestion(clarificationId, userId);
+        PreBidClarificationDTO result = clarificationService.rejectQuestion(tenderId, clarificationId, userId);
         return ResponseEntity.ok(result);
     }
 
@@ -68,7 +70,7 @@ public class PreBidClarificationController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('TENDEREE', 'ADMIN')")
+    @PreAuthorize("@tenderSecurityUtil.canManageTender(#tenderId)")
     public ResponseEntity<List<PreBidClarificationDTO>> getAllClarifications(
             @PathVariable Long tenderId) {
         List<PreBidClarificationDTO> results = clarificationService.getAllClarifications(tenderId);
@@ -76,7 +78,7 @@ public class PreBidClarificationController {
     }
 
     @GetMapping("/pending")
-    @PreAuthorize("hasAnyRole('TENDEREE', 'ADMIN')")
+    @PreAuthorize("@tenderSecurityUtil.canManageTender(#tenderId)")
     public ResponseEntity<List<PreBidClarificationDTO>> getPendingClarifications(
             @PathVariable Long tenderId) {
         List<PreBidClarificationDTO> results = clarificationService.getPendingClarifications(tenderId);
@@ -94,13 +96,6 @@ public class PreBidClarificationController {
     }
 
     private Long getUserId(Jwt jwt) {
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) {
-            return number.longValue();
-        }
-        if (userIdClaim != null) {
-            return Long.parseLong(userIdClaim.toString());
-        }
-        return Long.parseLong(jwt.getSubject());
+        return jwtUserIdExtractor.requireUserId(jwt);
     }
 }

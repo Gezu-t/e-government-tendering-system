@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "notification_templates")
@@ -21,6 +23,7 @@ public class NotificationTemplate {
     private String templateKey;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false)
     private NotificationType type;
 
@@ -34,4 +37,3 @@ public class NotificationTemplate {
     @Column(nullable = false)
     private String variables; // JSON array of allowed variables
 }
-

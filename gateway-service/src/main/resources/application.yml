@@ -34,6 +34,7 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:9000/auth/realms/egov-tendering
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:9000/auth/realms/egov-tendering/protocol/openid-connect/certs}
 
   redis:
     host: localhost
@@ -140,3 +141,4 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: https://auth.egov-tendering.com/auth/realms/egov-tendering
+          jwk-set-uri: ${JWT_JWK_SET_URI:https://auth.egov-tendering.com/auth/realms/egov-tendering/protocol/openid-connect/certs}

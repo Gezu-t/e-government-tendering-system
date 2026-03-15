@@ -3,6 +3,7 @@ package com.egov.tendering.notification.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;
+import org.springframework.context.annotation.Primary;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.templatemode.TemplateMode;
@@ -55,8 +56,9 @@ public class TemplateConfig {
     }
 
     @Bean
+    @Primary
     @Description("Thymeleaf template engine with all resolvers configured")
-    public TemplateEngine templateEngine() {
+    public TemplateEngine notificationTemplateEngine() {
         SpringTemplateEngine templateEngine = new SpringTemplateEngine();
         templateEngine.addTemplateResolver(emailTemplateResolver());
         templateEngine.addTemplateResolver(smsTemplateResolver());

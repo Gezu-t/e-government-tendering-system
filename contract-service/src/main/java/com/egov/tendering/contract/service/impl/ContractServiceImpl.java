@@ -155,11 +155,14 @@ public class ContractServiceImpl implements ContractService {
   }
 
   @Override
-  public Page<ContractDTO> searchContracts(String title, ContractStatus status, Long tenderId, Long bidderId, Pageable pageable) {
+  public Page<ContractDTO> searchContracts(String title, ContractStatus status, Long tenderId, Long bidderId,
+                                           String username, boolean admin, Pageable pageable) {
     log.info("Searching contracts with title: {}, status: {}, tenderId: {}, bidderId: {}",
             title, status, tenderId, bidderId);
 
-    Page<Contract> contracts = contractRepository.searchContracts(title, status, tenderId, bidderId, pageable);
+    Page<Contract> contracts = admin
+            ? contractRepository.searchContracts(title, status, tenderId, bidderId, pageable)
+            : contractRepository.searchContractsByCreator(username, title, status, tenderId, bidderId, pageable);
     return contracts.map(contractMapper::toDto);
   }
 

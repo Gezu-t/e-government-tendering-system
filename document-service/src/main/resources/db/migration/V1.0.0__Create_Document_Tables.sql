@@ -49,6 +49,16 @@ CREATE TABLE IF NOT EXISTS document_access_logs (
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Create document_types lookup table for seeded types
+CREATE TABLE IF NOT EXISTS document_types (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(255),
+    allowed_extensions VARCHAR(255),
+
+    CONSTRAINT uk_document_types_name UNIQUE (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insert initial document types (if needed)
 -- These are just examples, you might want to customize based on your needs
 INSERT INTO document_types (name, description, allowed_extensions) VALUES

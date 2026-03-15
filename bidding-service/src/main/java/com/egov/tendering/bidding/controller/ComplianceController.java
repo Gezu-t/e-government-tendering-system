@@ -1,5 +1,6 @@
 package com.egov.tendering.bidding.controller;
 
+import com.egov.tendering.bidding.config.JwtUserIdExtractor;
 import com.egov.tendering.bidding.dal.dto.ComplianceCheckResult;
 import com.egov.tendering.bidding.dal.dto.ComplianceRequirementDTO;
 import com.egov.tendering.bidding.service.ComplianceService;
@@ -29,6 +30,7 @@ import java.util.List;
 public class ComplianceController {
 
     private final ComplianceService complianceService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     @GetMapping("/tenders/{tenderId}/compliance-requirements")
     @Operation(summary = "Get compliance requirements for a tender",
@@ -116,14 +118,7 @@ public class ComplianceController {
     }
 
     private Long getUserId(Jwt jwt) {
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) {
-            return number.longValue();
-        }
-        if (userIdClaim != null) {
-            return Long.parseLong(userIdClaim.toString());
-        }
-        return Long.parseLong(jwt.getSubject());
+        return jwtUserIdExtractor.requireUserId(jwt);
     }
 
     // Request DTO

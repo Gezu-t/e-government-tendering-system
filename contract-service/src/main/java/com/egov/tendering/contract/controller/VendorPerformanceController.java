@@ -1,5 +1,6 @@
 package com.egov.tendering.contract.controller;
 
+import com.egov.tendering.contract.config.JwtUserIdExtractor;
 import com.egov.tendering.contract.dal.dto.VendorPerformanceDTO;
 import com.egov.tendering.contract.dal.dto.VendorPerformanceRequest;
 import com.egov.tendering.contract.service.VendorPerformanceService;
@@ -23,6 +24,7 @@ import java.util.List;
 public class VendorPerformanceController {
 
     private final VendorPerformanceService performanceService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     @PostMapping("/contracts/{contractId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'TENDEREE')")
@@ -54,9 +56,6 @@ public class VendorPerformanceController {
     }
 
     private Long getUserId(Jwt jwt) {
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) return number.longValue();
-        if (userIdClaim != null) return Long.parseLong(userIdClaim.toString());
-        return Long.parseLong(jwt.getSubject());
+        return jwtUserIdExtractor.requireUserId(jwt);
     }
 }

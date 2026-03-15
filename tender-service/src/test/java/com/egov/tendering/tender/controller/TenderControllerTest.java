@@ -1,5 +1,6 @@
 package com.egov.tendering.tender.controller;
 
+import com.egov.tendering.tender.config.JwtUserIdExtractor;
 import com.egov.tendering.tender.dal.dto.*;
 import com.egov.tendering.tender.dal.model.AllocationStrategy;
 import com.egov.tendering.tender.dal.model.TenderStatus;
@@ -41,6 +42,9 @@ class TenderControllerTest {
     private TenderService tenderService;
 
     @MockBean
+    private JwtUserIdExtractor jwtUserIdExtractor;
+
+    @MockBean
     private JwtDecoder jwtDecoder;
 
     private ObjectMapper objectMapper;
@@ -70,6 +74,8 @@ class TenderControllerTest {
                 .criteria(Collections.emptyList())
                 .items(Collections.emptyList())
                 .build();
+
+        when(jwtUserIdExtractor.requireUserId(any())).thenReturn(100L);
     }
 
     @Test

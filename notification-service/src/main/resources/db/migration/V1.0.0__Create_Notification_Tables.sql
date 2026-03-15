@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     error_message VARCHAR(255) NULL,
     created_at DATETIME(6) NOT NULL,
     delivered_at DATETIME(6) NULL,
-    read BIT(1) NOT NULL,
+    is_read BIT(1) NOT NULL,
     retry_count INT NULL,
     last_retry_at DATETIME(6) NULL,
     updated_at DATETIME(6) NULL,

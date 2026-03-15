@@ -1,5 +1,6 @@
 package com.egov.tendering.notification.controller;
 
+import com.egov.tendering.notification.config.JwtUserIdExtractor;
 import com.egov.tendering.notification.dal.dto.NotificationRequest;
 import com.egov.tendering.notification.dal.dto.NotificationResponse;
 import com.egov.tendering.notification.dal.dto.NotificationSummaryDTO;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 public class NotificationController {
 
   private final NotificationService notificationService;
+  private final JwtUserIdExtractor jwtUserIdExtractor;
 
   @PostMapping
   @Operation(summary = "Send a new notification")
@@ -113,10 +115,7 @@ public class NotificationController {
   private Set<String> lookupIdentifiers(Jwt jwt, String requestedUserId) {
     Set<String> identifiers = new LinkedHashSet<>();
     if (jwt != null) {
-      Object userIdClaim = jwt.getClaim("userId");
-      if (userIdClaim != null && !userIdClaim.toString().isBlank()) {
-        identifiers.add(userIdClaim.toString());
-      }
+      identifiers.add(jwtUserIdExtractor.getUserIdAsString(jwt));
       if (jwt.getSubject() != null && !jwt.getSubject().isBlank()) {
         identifiers.add(jwt.getSubject());
       }

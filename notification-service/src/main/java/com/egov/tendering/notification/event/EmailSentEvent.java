@@ -14,6 +14,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public class EmailSentEvent extends NotificationEvent {
     private String recipient;
+    private Long recipientUserId;
     private String subject;
     private String content;
     private String status;

@@ -1,5 +1,6 @@
 package com.egov.tendering.evaluation.controller;
 
+import com.egov.tendering.evaluation.config.JwtUserIdExtractor;
 import com.egov.tendering.evaluation.dal.dto.ConflictDeclarationRequest;
 import com.egov.tendering.evaluation.dal.dto.ConflictOfInterestDTO;
 import com.egov.tendering.evaluation.service.ConflictOfInterestService;
@@ -22,6 +23,7 @@ import java.util.List;
 public class ConflictOfInterestController {
 
     private final ConflictOfInterestService conflictService;
+    private final JwtUserIdExtractor jwtUserIdExtractor;
 
     @PostMapping("/tenders/{tenderId}/declare")
     @PreAuthorize("hasAnyRole('EVALUATOR', 'COMMITTEE')")
@@ -65,9 +67,6 @@ public class ConflictOfInterestController {
     }
 
     private Long getUserId(Jwt jwt) {
-        Object userIdClaim = jwt.getClaim("userId");
-        if (userIdClaim instanceof Number number) return number.longValue();
-        if (userIdClaim != null) return Long.parseLong(userIdClaim.toString());
-        return Long.parseLong(jwt.getSubject());
+        return jwtUserIdExtractor.requireUserId(jwt);
     }
 }

@@ -35,4 +35,14 @@ public interface TenderRepository extends JpaRepository<Tender, Long> {
             @Param("status") TenderStatus status,
             @Param("type") TenderType type,
             Pageable pageable);
+
+    @Query("SELECT t FROM Tender t WHERE " +
+            "(:title IS NULL OR LOWER(t.title) LIKE LOWER(CONCAT('%', :title, '%'))) AND " +
+            "(t.status IN :statuses) AND " +
+            "(:type IS NULL OR t.type = :type)")
+    Page<Tender> searchPublicTenders(
+            @Param("title") String title,
+            @Param("statuses") List<TenderStatus> statuses,
+            @Param("type") TenderType type,
+            Pageable pageable);
 }

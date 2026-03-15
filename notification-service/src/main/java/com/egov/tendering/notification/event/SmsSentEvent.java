@@ -13,6 +13,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public class SmsSentEvent extends NotificationEvent {
     private String recipient;
+    private Long recipientUserId;
     private String content;
     private String status;
 }

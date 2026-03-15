@@ -92,9 +92,21 @@ public class DocumentEventPublisher {
                 .entityType(document.getEntityType())
                 .status(document.getStatus())
                 .userId(userId)
+                .actorUserId(parseUserId(userId))
                 .timestamp(LocalDateTime.now())
                 .eventType(eventType)
                 .build();
+    }
+
+    private Long parseUserId(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(userId);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     /**

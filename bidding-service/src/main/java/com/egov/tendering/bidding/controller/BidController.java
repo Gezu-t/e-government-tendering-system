@@ -1,5 +1,6 @@
 package com.egov.tendering.bidding.controller;
 
+import com.egov.tendering.bidding.config.JwtUserIdExtractor;
 import com.egov.tendering.bidding.dal.dto.BidDTO;
 import com.egov.tendering.bidding.dal.dto.PageDTO;
 import com.egov.tendering.bidding.dal.model.BidStatus;
@@ -29,6 +30,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class BidController {
 
   private final BidService bidService;
+  private final JwtUserIdExtractor jwtUserIdExtractor;
 
   @PostMapping
   @PreAuthorize("hasRole('TENDERER')")
@@ -80,7 +82,7 @@ public class BidController {
   @GetMapping("/tenderer")
   @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR', 'TENDERER')")
   public ResponseEntity<PageDTO<BidDTO>> getBidsByTenderer(
-          @RequestHeader(value = "X-User-ID", required = false) Long requestedTendererId,
+          @RequestParam(value = "tendererId", required = false) Long requestedTendererId,
           @AuthenticationPrincipal Jwt jwt,
           @PageableDefault(size = 10) Pageable pageable) {
     Long tendererId = resolveTendererId(requestedTendererId, jwt);
@@ -168,13 +170,6 @@ public class BidController {
   }
 
   private Long getUserId(Jwt jwt) {
-    Object userIdClaim = jwt.getClaim("userId");
-    if (userIdClaim instanceof Number number) {
-      return number.longValue();
-    }
-    if (userIdClaim != null) {
-      return Long.parseLong(userIdClaim.toString());
-    }
-    return Long.parseLong(jwt.getSubject());
+    return jwtUserIdExtractor.requireUserId(jwt);
   }
 }

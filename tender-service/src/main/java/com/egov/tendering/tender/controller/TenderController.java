@@ -1,5 +1,6 @@
 package com.egov.tendering.tender.controller;
 
+import com.egov.tendering.tender.config.JwtUserIdExtractor;
 import com.egov.tendering.tender.dal.dto.*;
 import com.egov.tendering.tender.dal.model.TenderStatus;
 import com.egov.tendering.tender.dal.model.TenderType;
@@ -28,6 +29,7 @@ import java.util.List;
 public class TenderController {
 
   private final TenderService tenderService;
+  private final JwtUserIdExtractor jwtUserIdExtractor;
 
   @PostMapping
   @PreAuthorize("hasAnyRole('ADMIN', 'TENDEREE')")
@@ -42,6 +44,7 @@ public class TenderController {
   }
 
   @GetMapping("/{tenderId}")
+  @PreAuthorize("@tenderSecurityUtil.canAccessTender(#tenderId)")
   public ResponseEntity<TenderDTO> getTenderById(@PathVariable Long tenderId) {
     log.info("Received request to get tender by ID: {}", tenderId);
     TenderDTO tender = tenderService.getTenderById(tenderId);
@@ -49,6 +52,7 @@ public class TenderController {
   }
 
   @GetMapping
+  @PreAuthorize("isAuthenticated()")
   public ResponseEntity<Page<TenderDTO>> searchTenders(
           @RequestParam(required = false) String title,
           @RequestParam(required = false) TenderStatus status,
@@ -73,7 +77,7 @@ public class TenderController {
   }
 
   @PatchMapping("/{tenderId}/status")
-  @PreAuthorize("hasAnyRole('ADMIN', 'TENDEREE')")
+  @PreAuthorize("@tenderSecurityUtil.canManageTender(#tenderId)")
   public ResponseEntity<TenderDTO> updateTenderStatus(
           @PathVariable Long tenderId,
           @Valid @RequestBody UpdateTenderStatusRequest request) {
@@ -84,7 +88,7 @@ public class TenderController {
   }
 
   @PostMapping("/{tenderId}/publish")
-  @PreAuthorize("hasAnyRole('ADMIN', 'TENDEREE')")
+  @PreAuthorize("@tenderSecurityUtil.canManageTender(#tenderId)")
   public ResponseEntity<TenderDTO> publishTender(@PathVariable Long tenderId) {
     log.info("Received request to publish tender with ID: {}", tenderId);
     TenderDTO publishedTender = tenderService.publishTender(tenderId);
@@ -92,7 +96,7 @@ public class TenderController {
   }
 
   @PostMapping("/{tenderId}/close")
-  @PreAuthorize("hasAnyRole('ADMIN', 'TENDEREE')")
+  @PreAuthorize("@tenderSecurityUtil.canManageTender(#tenderId)")
   public ResponseEntity<TenderDTO> closeTender(@PathVariable Long tenderId) {
     log.info("Received request to close tender with ID: {}", tenderId);
     TenderDTO closedTender = tenderService.closeTender(tenderId);
@@ -100,7 +104,7 @@ public class TenderController {
   }
 
   @PostMapping("/{tenderId}/amend")
-  @PreAuthorize("hasAnyRole('ADMIN', 'TENDEREE')")
+  @PreAuthorize("@tenderSecurityUtil.canManageTender(#tenderId)")
   public ResponseEntity<TenderDTO> amendTender(
           @PathVariable Long tenderId,
           @Valid @RequestBody TenderAmendmentRequest request,
@@ -112,6 +116,7 @@ public class TenderController {
   }
 
   @GetMapping("/{tenderId}/amendments")
+  @PreAuthorize("@tenderSecurityUtil.canAccessTender(#tenderId)")
   public ResponseEntity<List<TenderAmendmentDTO>> getTenderAmendments(@PathVariable Long tenderId) {
     log.info("Received request to get amendments for tender: {}", tenderId);
     List<TenderAmendmentDTO> amendments = tenderService.getTenderAmendments(tenderId);
@@ -119,13 +124,6 @@ public class TenderController {
   }
 
   private Long getUserId(Jwt jwt) {
-    Object userIdClaim = jwt.getClaim("userId");
-    if (userIdClaim instanceof Number number) {
-      return number.longValue();
-    }
-    if (userIdClaim != null) {
-      return Long.parseLong(userIdClaim.toString());
-    }
-    return Long.parseLong(jwt.getSubject());
+    return jwtUserIdExtractor.requireUserId(jwt);
   }
 }
