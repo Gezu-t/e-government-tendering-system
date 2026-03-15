@@ -46,7 +46,7 @@ public class FileStorageController {
 
         String fileName = fileStorageService.storeFile(file, prefix);
         String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/api/v1/files/")
+                .path("/api/files/")
                 .path(fileName)
                 .toUriString();
 

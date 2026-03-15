@@ -432,6 +432,6 @@ public class DocumentService {
      * Generate download URL for a document
      */
     private String generateDownloadUrl(Long documentId) {
-        return baseUrl + "/api/v1/documents/" + documentId + "/download";
+        return baseUrl + "/api/documents/" + documentId + "/download";
     }
 }
