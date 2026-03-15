@@ -7,14 +7,14 @@ VALUES
     ('Supply of Office Equipment for Government Offices',
      'Procurement of office furniture, computers, and supplies for 5 government offices in Addis Ababa. '
      'This tender is open to all pre-qualified vendors with experience in office equipment supply.',
-     2, 'OPEN', DATE_ADD(NOW(), INTERVAL 30 DAY),
+     2, 'OPEN', 'PUBLISHED', DATE_ADD(NOW(), INTERVAL 30 DAY),
      'SINGLE', 1, 1, 6.00, false,
      NOW(), NOW()),
 
     ('IT Infrastructure Upgrade - Phase 1',
      'Design, supply, and installation of network infrastructure including servers, switches, '
      'and cabling for the Ministry of Finance data center.',
-     2, 'SELECTIVE', DATE_ADD(NOW(), INTERVAL 45 DAY),
+     2, 'SELECTIVE', 'PUBLISHED', DATE_ADD(NOW(), INTERVAL 45 DAY),
      'COOPERATIVE', 1, 3, 7.00, true,
      NOW(), NOW());
 
