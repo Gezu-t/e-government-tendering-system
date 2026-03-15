@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class AuditEventDTO {
 
-    private String userId;
+    private Long userId;
     private String username;
     private AuditActionType actionType;
     private String entityType;

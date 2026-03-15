@@ -13,7 +13,7 @@ import java.util.List;
  */
 public class AuditLogSpecification {
 
-    public static Specification<AuditLog> hasUserId(String userId) {
+    public static Specification<AuditLog> hasUserId(Long userId) {
         return (root, query, criteriaBuilder) ->
                 criteriaBuilder.equal(root.get("userId"), userId);
     }

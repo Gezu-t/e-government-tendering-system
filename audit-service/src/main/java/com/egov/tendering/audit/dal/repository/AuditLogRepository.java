@@ -22,7 +22,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long>, JpaSp
     /**
      * Find audit logs by user ID
      */
-    Page<AuditLog> findByUserIdOrderByTimestampDesc(String userId, Pageable pageable);
+    Page<AuditLog> findByUserIdOrderByTimestampDesc(Long userId, Pageable pageable);
 
     /**
      * Find audit logs by action type
@@ -43,7 +43,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long>, JpaSp
      * Find audit logs by user ID and timestamp range
      */
     Page<AuditLog> findByUserIdAndTimestampBetweenOrderByTimestampDesc(
-            String userId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
+            Long userId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
 
     /**
      * Find audit logs by entity type, entity ID, and timestamp range

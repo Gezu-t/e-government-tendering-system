@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 public class AuditLogRequest {
 
     // The user who performed the action
-    private String userId;
+    private Long userId;
     private String username;
 
     @NotNull(message = "Action type is required")

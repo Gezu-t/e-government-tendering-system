@@ -19,7 +19,7 @@ import java.util.List;
 @AllArgsConstructor
 public class AuditLogFilter {
 
-    private String userId;
+    private Long userId;
     private String username;
     private List<AuditActionType> actionTypes;
     private String entityType;

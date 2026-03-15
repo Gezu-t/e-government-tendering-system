@@ -20,7 +20,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -111,7 +110,7 @@ public class AuditService {
      * Get audit logs by user
      */
     @Transactional(readOnly = true)
-    public Page<AuditLogResponse> getAuditLogsByUser(String userId, Pageable pageable) {
+    public Page<AuditLogResponse> getAuditLogsByUser(Long userId, Pageable pageable) {
         log.debug("Getting audit logs for user: {}", userId);
 
         Page<AuditLog> auditLogs = auditLogRepository.findByUserIdOrderByTimestampDesc(userId, pageable);
@@ -244,6 +243,112 @@ public class AuditService {
     }
 
     /**
+     * Get total audit log count
+     */
+    @Transactional(readOnly = true)
+    public long getTotalAuditCount() {
+        return auditLogRepository.count();
+    }
+
+    /**
+     * Get audit count grouped by action type
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Long> getAuditCountByAction() {
+        List<AuditLog> all = auditLogRepository.findAll();
+        return all.stream()
+                .filter(a -> a.getActionType() != null)
+                .collect(Collectors.groupingBy(
+                        a -> a.getActionType().name(),
+                        Collectors.counting()));
+    }
+
+    /**
+     * Get audit count grouped by module/entity type
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Long> getAuditCountByModule() {
+        List<AuditLog> all = auditLogRepository.findAll();
+        return all.stream()
+                .filter(a -> a.getEntityType() != null)
+                .collect(Collectors.groupingBy(
+                        AuditLog::getEntityType,
+                        Collectors.counting()));
+    }
+
+    /**
+     * Get audit count for a specific time period
+     */
+    @Transactional(readOnly = true)
+    public long getAuditCountForPeriod(LocalDateTime startTime, LocalDateTime endTime) {
+        AuditLogFilter filter = AuditLogFilter.builder()
+                .startTime(startTime)
+                .endTime(endTime)
+                .build();
+        Specification<AuditLog> spec = buildSpecification(filter);
+        return auditLogRepository.count(spec);
+    }
+
+    @Transactional(readOnly = true)
+    public ProcurementReport buildProcurementReport(LocalDate from, LocalDate to) {
+        LocalDateTime startTime = from.atStartOfDay();
+        LocalDateTime endTime = to.atTime(23, 59, 59);
+
+        List<AuditLog> allLogs = auditLogRepository.findAll();
+        List<AuditLog> periodLogs = auditLogRepository.findAll(buildSpecification(AuditLogFilter.builder()
+                .startTime(startTime)
+                .endTime(endTime)
+                .build()));
+
+        Map<String, Long> tendersByStatus = summarizeLatestStatus(allLogs, Set.of("TENDER"));
+        Map<String, Long> bidsByStatus = summarizeLatestStatus(allLogs, Set.of("TENDEROFFER", "BID"));
+        Map<String, Long> contractsByStatus = summarizeLatestStatus(allLogs, Set.of("CONTRACT"));
+
+        ProcurementReport.TenderSummary tenderSummary = ProcurementReport.TenderSummary.builder()
+                .totalTenders(countDistinctEntities(allLogs, Set.of("TENDER")))
+                .tendersByStatus(tendersByStatus)
+                .tendersByType(Map.of())
+                .tendersPublishedThisPeriod(countActions(periodLogs, Set.of("TENDER"), "PUBLISHED"))
+                .tendersClosedThisPeriod(countActions(periodLogs, Set.of("TENDER"), "CLOSED"))
+                .tendersAwardedThisPeriod(countActions(periodLogs, Set.of("TENDER"), "AWARDED"))
+                .build();
+
+        long totalTenders = tenderSummary.getTotalTenders();
+        long totalBids = countDistinctEntities(allLogs, Set.of("TENDEROFFER", "BID"));
+        ProcurementReport.BidSummary bidSummary = ProcurementReport.BidSummary.builder()
+                .totalBids(totalBids)
+                .bidsByStatus(bidsByStatus)
+                .averageBidsPerTender(totalTenders == 0 ? 0.0 : (double) totalBids / totalTenders)
+                .bidsSubmittedThisPeriod(countActions(periodLogs, Set.of("TENDEROFFER", "BID"), "SUBMITTED"))
+                .flaggedBids(countFlaggedBids(periodLogs))
+                .build();
+
+        ProcurementReport.ContractSummary contractSummary = ProcurementReport.ContractSummary.builder()
+                .totalContracts(countDistinctEntities(allLogs, Set.of("CONTRACT")))
+                .contractsByStatus(contractsByStatus)
+                .activeContracts(contractsByStatus.getOrDefault("ACTIVE", 0L))
+                .completedContracts(contractsByStatus.getOrDefault("COMPLETED", 0L))
+                .overdueMilestones(0L)
+                .build();
+
+        ProcurementReport.AuditSummary auditSummary = ProcurementReport.AuditSummary.builder()
+                .totalAuditEntries(allLogs.size())
+                .entriesByAction(getAuditCountByAction())
+                .entriesByModule(getAuditCountByModule())
+                .entriesThisPeriod(periodLogs.size())
+                .build();
+
+        return ProcurementReport.builder()
+                .reportDate(LocalDate.now())
+                .reportPeriod(from + " to " + to)
+                .tenderSummary(tenderSummary)
+                .bidSummary(bidSummary)
+                .contractSummary(contractSummary)
+                .auditSummary(auditSummary)
+                .build();
+    }
+
+    /**
      * Delete audit logs older than a certain date
      */
     @Transactional
@@ -272,7 +377,7 @@ public class AuditService {
     private Specification<AuditLog> buildSpecification(AuditLogFilter filter) {
         Specification<AuditLog> spec = Specification.where(null);
 
-        if (filter.getUserId() != null && !filter.getUserId().isEmpty()) {
+        if (filter.getUserId() != null) {
             spec = spec.and(AuditLogSpecification.hasUserId(filter.getUserId()));
         }
 
@@ -321,5 +426,84 @@ public class AuditService {
         }
 
         return spec;
+    }
+
+    private long countDistinctEntities(List<AuditLog> logs, Set<String> entityTypes) {
+        return logs.stream()
+                .filter(log -> matchesEntityType(log, entityTypes))
+                .map(AuditLog::getEntityId)
+                .filter(Objects::nonNull)
+                .filter(id -> !id.isBlank())
+                .filter(id -> !"UNKNOWN".equalsIgnoreCase(id))
+                .distinct()
+                .count();
+    }
+
+    private Map<String, Long> summarizeLatestStatus(List<AuditLog> logs, Set<String> entityTypes) {
+        Map<String, AuditLog> latestByEntity = new HashMap<>();
+        for (AuditLog log : logs) {
+            if (!matchesEntityType(log, entityTypes) || log.getEntityId() == null || log.getEntityId().isBlank()) {
+                continue;
+            }
+            AuditLog current = latestByEntity.get(log.getEntityId());
+            if (current == null || log.getTimestamp().isAfter(current.getTimestamp())) {
+                latestByEntity.put(log.getEntityId(), log);
+            }
+        }
+
+        return latestByEntity.values().stream()
+                .map(this::inferLifecycleStatus)
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(status -> status, Collectors.counting()));
+    }
+
+    private long countActions(List<AuditLog> logs, Set<String> entityTypes, String keyword) {
+        return logs.stream()
+                .filter(log -> matchesEntityType(log, entityTypes))
+                .filter(log -> containsKeyword(log.getAction(), keyword) || containsKeyword(log.getEventType(), keyword))
+                .count();
+    }
+
+    private long countFlaggedBids(List<AuditLog> logs) {
+        return logs.stream()
+                .filter(log -> matchesEntityType(log, Set.of("TENDEROFFER", "BID")))
+                .filter(log -> containsKeyword(log.getAction(), "FLAG")
+                        || containsKeyword(log.getAction(), "TAMPER")
+                        || containsKeyword(log.getAction(), "REJECT")
+                        || containsKeyword(log.getEventType(), "FLAG")
+                        || containsKeyword(log.getEventType(), "TAMPER")
+                        || containsKeyword(log.getEventType(), "REJECT"))
+                .map(AuditLog::getEntityId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+    }
+
+    private boolean matchesEntityType(AuditLog log, Set<String> entityTypes) {
+        if (log.getEntityType() == null) {
+            return false;
+        }
+        return entityTypes.contains(log.getEntityType().toUpperCase(Locale.ROOT));
+    }
+
+    private boolean containsKeyword(String value, String keyword) {
+        return value != null && value.toUpperCase(Locale.ROOT).contains(keyword);
+    }
+
+    private String inferLifecycleStatus(AuditLog log) {
+        String combined = ((log.getAction() == null ? "" : log.getAction()) + " "
+                + (log.getEventType() == null ? "" : log.getEventType())).toUpperCase(Locale.ROOT);
+        if (combined.contains("CANCEL")) return "CANCELLED";
+        if (combined.contains("TERMINAT")) return "TERMINATED";
+        if (combined.contains("COMPLET")) return "COMPLETED";
+        if (combined.contains("ACTIVE") || combined.contains("ACTIVAT")) return "ACTIVE";
+        if (combined.contains("AWARD")) return "AWARDED";
+        if (combined.contains("CLOSE")) return "CLOSED";
+        if (combined.contains("PUBLISH")) return "PUBLISHED";
+        if (combined.contains("SUBMIT")) return "SUBMITTED";
+        if (combined.contains("EVALUAT")) return "EVALUATED";
+        if (combined.contains("REJECT")) return "REJECTED";
+        if (combined.contains("CREATE")) return "CREATED";
+        return null;
     }
 }

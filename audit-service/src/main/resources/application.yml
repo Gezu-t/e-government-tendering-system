@@ -14,7 +14,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
@@ -56,3 +56,10 @@ logging:
   level:
     com.egov.tendering: INFO
     org.flywaydb: DEBUG
+
+app:
+  kafka:
+    topics:
+      tender-events: tender-events
+      evaluation-events: evaluation-events
+      contract-events: contract-events

@@ -1,13 +1,19 @@
 package com.egov.tendering.audit.event;
 
+import com.egov.tendering.audit.dal.model.AuditActionType;
 import com.egov.tendering.audit.dal.model.AuditLog;
 import com.egov.tendering.audit.dal.repository.AuditLogRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -15,20 +21,28 @@ import java.time.LocalDateTime;
 public class AuditEventConsumer {
 
     private final AuditLogRepository auditLogRepository;
+    private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = "tender-events", groupId = "${spring.application.name}")
+    private static final List<String> ENTITY_ID_KEYS = List.of(
+            "tenderId", "contractId", "bidId", "evaluationId", "reviewId", "entityId", "id"
+    );
+    private static final List<String> USER_ID_KEYS = List.of(
+            "userId", "evaluatorId", "committeeMemberId", "tendererId", "bidderId"
+    );
+
+    @KafkaListener(topics = "${app.kafka.topics.tender-events:tender-events}", groupId = "${spring.application.name}")
     public void listenTenderEvents(Object event) {
         log.info("Received tender event: {}", event);
         processEvent(event, "Tender", "Tenderee");
     }
 
-    @KafkaListener(topics = "evaluation-events", groupId = "${spring.application.name}")
+    @KafkaListener(topics = "${app.kafka.topics.evaluation-events:evaluation-events}", groupId = "${spring.application.name}")
     public void listenEvaluationEvents(Object event) {
         log.info("Received evaluation event: {}", event);
         processEvent(event, "TenderOffer", "Evaluator");
     }
 
-    @KafkaListener(topics = "contract-events", groupId = "${spring.application.name}")
+    @KafkaListener(topics = "${app.kafka.topics.contract-events:contract-events}", groupId = "${spring.application.name}")
     public void listenContractEvents(Object event) {
         log.info("Received contract event: {}", event);
         processEvent(event, "Contract", "Committee");
@@ -36,14 +50,22 @@ public class AuditEventConsumer {
 
     private void processEvent(Object event, String entityType, String module) {
         try {
-            String eventString = event.toString();
+            Map<String, Object> eventData = toEventData(event);
+            String eventType = extractEventType(eventData, event);
+            String details = toJson(event);
             AuditLog auditLog = AuditLog.builder()
-                    .eventType(extractEventType(eventString)) // e.g., "TenderCreated", "EvaluationCompleted"
+                    .username("system")
+                    .actionType(extractActionType(eventType))
+                    .eventType(eventType)
                     .entityType(entityType)
-                    .entityId(extractEntityId(eventString))
-                    .description(eventString)
-                    .timestamp(LocalDateTime.now()) // Replace with event timestamp if available
-                    .userId(extractUserId(eventString))
+                    .entityId(extractEntityId(eventData))
+                    .action(eventType)
+                    .details(details)
+                    .description(details)
+                    .sourceIp("internal")
+                    .success(true)
+                    .timestamp(LocalDateTime.now())
+                    .userId(extractUserId(eventData))
                     .module(module)
                     .build();
             auditLogRepository.save(auditLog);
@@ -53,16 +75,70 @@ public class AuditEventConsumer {
         }
     }
 
-    // Placeholder extraction methods - refine with actual event structure
-    private String extractEventType(String event) {
-        return event.contains("eventType") ? event.split("eventType=")[1].split(",")[0] : "UNKNOWN";
+    private Map<String, Object> toEventData(Object event) {
+        return objectMapper.convertValue(event, new TypeReference<>() {});
     }
 
-    private String extractEntityId(String event) {
-        return event.contains("Id=") ? event.split("Id=")[1].split(",")[0] : "UNKNOWN";
+    private String extractEventType(Map<String, Object> eventData, Object event) {
+        Object eventType = eventData.get("eventType");
+        if (eventType != null) {
+            return eventType.toString();
+        }
+
+        String className = event.getClass().getSimpleName();
+        return className.isBlank() ? "UNKNOWN" : className.toUpperCase();
     }
 
-    private Long extractUserId(String event) {
-        return event.contains("userId") ? Long.parseLong(event.split("userId=")[1].split(",")[0]) : null;
+    private AuditActionType extractActionType(String eventType) {
+        String normalizedEventType = eventType.toUpperCase();
+        try {
+            return AuditActionType.valueOf(normalizedEventType);
+        } catch (IllegalArgumentException ex) {
+            return AuditActionType.CUSTOM;
+        }
+    }
+
+    private String extractEntityId(Map<String, Object> eventData) {
+        for (String key : ENTITY_ID_KEYS) {
+            Object value = eventData.get(key);
+            if (value != null) {
+                return value.toString();
+            }
+        }
+        return "UNKNOWN";
+    }
+
+    private Long extractUserId(Map<String, Object> eventData) {
+        for (String key : USER_ID_KEYS) {
+            Object value = eventData.get(key);
+            Long parsedValue = asLong(value);
+            if (parsedValue != null) {
+                return parsedValue;
+            }
+        }
+        return null;
+    }
+
+    private Long asLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private String toJson(Object event) {
+        try {
+            return objectMapper.writeValueAsString(event);
+        } catch (JsonProcessingException ex) {
+            log.warn("Failed to serialize audit event payload, falling back to toString()", ex);
+            return String.valueOf(event);
+        }
     }
 }
