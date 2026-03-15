@@ -15,7 +15,7 @@ import {
   Typography,
   message,
   Divider,
-} from 'antd';
+Flex, } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { tenderApi } from '../../api/services';
@@ -366,7 +366,7 @@ export default function CreateTenderPage() {
   };
 
   const renderReviewStep = () => (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Flex vertical gap={24} style={{ width: '100%' }}>
       <Descriptions title="Basic Information" bordered column={2}>
         <Descriptions.Item label="Title">{basicValues?.title}</Descriptions.Item>
         <Descriptions.Item label="Type">
@@ -418,7 +418,7 @@ export default function CreateTenderPage() {
           </Descriptions.Item>
         </Descriptions>
       ))}
-    </Space>
+    </Flex>
   );
 
   const stepContent = [renderBasicInfoStep, renderCriteriaStep, renderItemsStep, renderReviewStep];

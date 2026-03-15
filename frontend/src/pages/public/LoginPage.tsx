@@ -1,4 +1,4 @@
-import { Form, Input, Button, Card, Typography, message, Space } from 'antd';
+import { Form, Input, Button, Card, Typography, message, Flex } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../../api/services';
@@ -26,12 +26,12 @@ export default function LoginPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1a365d 0%, #2d5f8a 100%)' }}>
       <Card style={{ width: 420, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%', textAlign: 'center' }}>
+        <Flex vertical gap={24} style={{ width: '100%', textAlign: 'center' }}>
           <div>
             <Title level={3} style={{ margin: 0, color: '#1a365d' }}>E-Government Tendering</Title>
             <Text type="secondary">Procurement Management System</Text>
           </div>
-          <Form form={form} onFinish={onFinish} layout="vertical" size="large">
+          <Form form={form} onFinish={onFinish} layout="vertical">
             <Form.Item name="usernameOrEmail" rules={[{ required: true, message: 'Username or email is required' }]}>
               <Input prefix={<UserOutlined />} placeholder="Username or Email" />
             </Form.Item>
@@ -45,7 +45,7 @@ export default function LoginPage() {
             </Form.Item>
           </Form>
           <Text>Don't have an account? <Link to="/register">Register here</Link></Text>
-        </Space>
+        </Flex>
       </Card>
     </div>
   );

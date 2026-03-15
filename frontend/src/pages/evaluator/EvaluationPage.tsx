@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Card, Form, Slider, InputNumber, Input, Button, Typography, Space,
   Checkbox, Alert, Spin, message, Divider, Tag, Descriptions,
-} from 'antd';
+Flex, } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { evaluationApi, tenderApi, bidApi } from '../../api/services';
 import type { Tender, Bid, TenderCriteria } from '../../types';
@@ -149,7 +149,7 @@ export default function EvaluationPage() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 80 }}>
-        <Spin size="large" />
+        <Spin />
       </div>
     );
   }
@@ -181,7 +181,7 @@ export default function EvaluationPage() {
         extra={conflictDeclared ? <Tag color="green">Declared</Tag> : <Tag color="orange">Pending</Tag>}
       >
         {!conflictDeclared ? (
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Flex vertical gap={16} style={{ width: '100%' }}>
             <Text>
               Before evaluating, you must declare whether you have any conflict of interest
               with the bidder or the tender subject matter.
@@ -207,7 +207,7 @@ export default function EvaluationPage() {
             >
               Submit Declaration
             </Button>
-          </Space>
+          </Flex>
         ) : hasConflict ? (
           <Alert
             type="error"
@@ -262,7 +262,7 @@ export default function EvaluationPage() {
                 label="Score (0 - 10)"
                 rules={[{ required: true, message: 'Please provide a score' }]}
               >
-                <Space style={{ width: '100%' }} direction="vertical">
+                <Flex vertical gap={8} style={{ width: '100%' }}>
                   <Slider
                     min={0}
                     max={10}
@@ -279,7 +279,7 @@ export default function EvaluationPage() {
                     onChange={(val) => handleScoreChange(criteria.id, val ?? 0)}
                     style={{ width: 120 }}
                   />
-                </Space>
+                </Flex>
               </Form.Item>
 
               <Form.Item
@@ -302,7 +302,7 @@ export default function EvaluationPage() {
             <Button
               type="primary"
               htmlType="submit"
-              size="large"
+             
               block
               loading={submitting}
             >

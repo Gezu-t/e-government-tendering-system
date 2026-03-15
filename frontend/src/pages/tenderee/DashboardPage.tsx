@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Row, Col, Card, Statistic, Table, Tag, Typography, Space, Button, Spin } from 'antd';
+import { Row, Col, Card, Statistic, Table, Tag, Typography, Space, Button, Spin, Flex } from 'antd';
 import {
   FileTextOutlined,
   SendOutlined,
@@ -111,7 +111,7 @@ export default function DashboardPage() {
 
   return (
     <Spin spinning={loading}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Flex vertical gap={24} style={{ width: '100%' }}>
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Title level={3} style={{ margin: 0 }}>
             Tenderee Dashboard
@@ -173,10 +173,10 @@ export default function DashboardPage() {
             dataSource={tenders}
             rowKey="id"
             pagination={false}
-            size="middle"
+           
           />
         </Card>
-      </Space>
+      </Flex>
     </Spin>
   );
 }

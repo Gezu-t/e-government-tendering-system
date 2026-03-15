@@ -207,7 +207,7 @@ export default function AuditLogPage() {
 
       {/* Filters */}
       <Card style={{ marginBottom: 16 }}>
-        <Space wrap size="middle">
+        <Space wrap>
           <RangePicker
             value={dateRange as [Dayjs, Dayjs] | null}
             onChange={(vals) => setDateRange(vals as [Dayjs | null, Dayjs | null] | null)}

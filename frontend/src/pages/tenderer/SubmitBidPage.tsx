@@ -156,7 +156,7 @@ export default function SubmitBidPage() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 100 }}>
-        <Spin size="large" />
+        <Spin />
       </div>
     );
   }
@@ -316,7 +316,7 @@ export default function SubmitBidPage() {
         <Button onClick={() => navigate(-1)}>Cancel</Button>
         <Button
           type="primary"
-          size="large"
+         
           loading={submitting}
           disabled={isDeadlinePassed || bidItems.length === 0}
           onClick={handleSubmit}

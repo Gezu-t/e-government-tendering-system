@@ -1,4 +1,4 @@
-import { Form, Input, Button, Card, Typography, Select, message, Space, Divider } from 'antd';
+import { Form, Input, Button, Card, Typography, Select, message, Divider, Flex } from 'antd';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../../api/services';
 import { useAuthStore } from '../../store/authStore';
@@ -43,7 +43,7 @@ export default function RegisterPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1a365d 0%, #2d5f8a 100%)', padding: 24 }}>
       <Card style={{ width: 520, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Flex vertical gap={16} style={{ width: '100%' }}>
           <div style={{ textAlign: 'center' }}>
             <Title level={3} style={{ margin: 0, color: '#1a365d' }}>Create Account</Title>
             <Text type="secondary">E-Government Procurement System</Text>
@@ -102,7 +102,7 @@ export default function RegisterPage() {
           <div style={{ textAlign: 'center' }}>
             <Text>Already have an account? <Link to="/login">Sign in</Link></Text>
           </div>
-        </Space>
+        </Flex>
       </Card>
     </div>
   );

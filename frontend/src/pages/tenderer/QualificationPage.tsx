@@ -163,7 +163,7 @@ export default function QualificationPage() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 100 }}>
-        <Spin size="large" />
+        <Spin />
       </div>
     );
   }

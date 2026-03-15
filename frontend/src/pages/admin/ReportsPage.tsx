@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Card, Typography, Row, Col, Statistic, DatePicker, Button, Space,
   Descriptions, Progress, Spin, message, Divider, Tag, Empty,
-} from 'antd';
+Flex, } from 'antd';
 import {
   BarChartOutlined, AuditOutlined, AppstoreOutlined, ThunderboltOutlined,
   ReloadOutlined,
@@ -85,7 +85,7 @@ export default function ReportsPage() {
 
       {/* Date Filter */}
       <Card style={{ marginBottom: 24 }}>
-        <Space wrap size="middle">
+        <Space wrap>
           <Text strong>Filter Period:</Text>
           <RangePicker
             value={dateRange as [Dayjs, Dayjs] | null}
@@ -152,7 +152,7 @@ export default function ReportsPage() {
           style={{ marginBottom: 24 }}
         >
           {topActions.length > 0 ? (
-            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Flex vertical gap={16} style={{ width: '100%' }}>
               {topActions.map((item) => (
                 <div key={item.action}>
                   <Space style={{ marginBottom: 4 }}>
@@ -166,7 +166,7 @@ export default function ReportsPage() {
                   />
                 </div>
               ))}
-            </Space>
+            </Flex>
           ) : (
             <Empty description="No action data available" />
           )}
@@ -178,7 +178,7 @@ export default function ReportsPage() {
           style={{ marginBottom: 24 }}
         >
           {modules.length > 0 ? (
-            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Flex vertical gap={16} style={{ width: '100%' }}>
               {modules.map((item, idx) => (
                 <div key={item.module}>
                   <Space style={{ marginBottom: 4 }}>
@@ -192,7 +192,7 @@ export default function ReportsPage() {
                   />
                 </div>
               ))}
-            </Space>
+            </Flex>
           ) : (
             <Empty description="No module data available" />
           )}

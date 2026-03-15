@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, Tag, Input, Select, Card, Typography, Space, Button } from 'antd';
+import { Table, Tag, Input, Select, Card, Typography, Space, Button, Flex } from 'antd';
 import { SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { tenderApi } from '../../api/services';
@@ -69,7 +69,7 @@ export default function TenderListPage() {
 
   return (
     <Card>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Flex vertical gap={24} style={{ width: '100%' }}>
         <Title level={4}>Published Tenders</Title>
         <Space>
           <Input
@@ -107,7 +107,7 @@ export default function TenderListPage() {
             onChange: (p) => setPage(p - 1),
           }}
         />
-      </Space>
+      </Flex>
     </Card>
   );
 }

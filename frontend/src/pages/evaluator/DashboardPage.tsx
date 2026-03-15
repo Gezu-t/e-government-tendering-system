@@ -210,7 +210,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 80 }}>
-        <Spin size="large" />
+        <Spin />
       </div>
     );
   }

@@ -17,7 +17,7 @@ import {
   List,
   Empty,
   Popconfirm,
-} from 'antd';
+Flex, } from 'antd';
 import {
   SendOutlined,
   StopOutlined,
@@ -338,7 +338,7 @@ export default function TenderDetailPage() {
   ];
 
   const renderCriteriaItemsTab = () => (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Flex vertical gap={24} style={{ width: '100%' }}>
       <div>
         <Title level={5}>Evaluation Criteria</Title>
         <Table
@@ -359,7 +359,7 @@ export default function TenderDetailPage() {
           size="small"
         />
       </div>
-    </Space>
+    </Flex>
   );
 
   const renderAmendmentsTab = () => (
@@ -521,7 +521,7 @@ export default function TenderDetailPage() {
         columns={bidColumns}
         dataSource={bids}
         rowKey="id"
-        size="middle"
+       
         pagination={{ pageSize: 10 }}
       />
     );
@@ -538,7 +538,7 @@ export default function TenderDetailPage() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 100 }}>
-        <Spin size="large" />
+        <Spin />
       </div>
     );
   }
@@ -556,7 +556,7 @@ export default function TenderDetailPage() {
   }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Flex vertical gap={24} style={{ width: '100%' }}>
       <Card>
         <Space style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <Space>
@@ -640,6 +640,6 @@ export default function TenderDetailPage() {
           </Form.Item>
         </Form>
       </Modal>
-    </Space>
+    </Flex>
   );
 }
