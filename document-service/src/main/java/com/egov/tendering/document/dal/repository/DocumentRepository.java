@@ -35,6 +35,20 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
      */
     Page<Document> findByEntityTypeAndEntityIdAndStatusNot(EntityType entityType, String entityId, DocumentStatus status, Pageable pageable);
 
+    @Query("""
+            SELECT d FROM Document d
+            WHERE d.entityType = :entityType
+              AND d.entityId = :entityId
+              AND d.status != :status
+              AND (d.createdBy IN :createdByValues OR d.isPublic = true)
+            """)
+    Page<Document> findAccessibleByEntityTypeAndEntityIdAndStatusNot(
+            @Param("entityType") EntityType entityType,
+            @Param("entityId") String entityId,
+            @Param("createdByValues") java.util.Collection<String> createdByValues,
+            @Param("status") DocumentStatus status,
+            Pageable pageable);
+
     /**
      * Find all documents by document type and status
      */
@@ -59,6 +73,18 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
      * Search documents by name containing the search term
      */
     Page<Document> findByNameContainingIgnoreCaseAndStatusNot(String searchTerm, DocumentStatus status, Pageable pageable);
+
+    @Query("""
+            SELECT d FROM Document d
+            WHERE LOWER(d.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+              AND d.status != :status
+              AND (d.createdBy IN :createdByValues OR d.isPublic = true)
+            """)
+    Page<Document> findAccessibleByNameContainingIgnoreCaseAndStatusNot(
+            @Param("searchTerm") String searchTerm,
+            @Param("createdByValues") java.util.Collection<String> createdByValues,
+            @Param("status") DocumentStatus status,
+            Pageable pageable);
 
     /**
      * Count documents by entity type and entity ID

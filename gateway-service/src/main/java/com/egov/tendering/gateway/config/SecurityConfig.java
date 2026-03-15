@@ -13,6 +13,7 @@ import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Security configuration for the API Gateway
@@ -24,6 +25,18 @@ public class SecurityConfig {
 
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
     private String issuerUri;
+
+    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:5173,http://localhost:4200}")
+    private String allowedOrigins;
+
+    @Value("${cors.allowed-methods:GET,POST,PUT,DELETE,OPTIONS}")
+    private String allowedMethods;
+
+    @Value("${cors.allowed-headers:*}")
+    private String allowedHeaders;
+
+    @Value("${cors.max-age:3600}")
+    private long corsMaxAge;
 
     /**
      * Configures security rules for the gateway
@@ -37,14 +50,12 @@ public class SecurityConfig {
                         // Public endpoints that don't require authentication
                         .pathMatchers("/actuator/**").permitAll()
                         .pathMatchers("/api/auth/**").permitAll()
-                        .pathMatchers("/api/public/**").permitAll()
 
                         // Swagger/OpenAPI endpoints
                         .pathMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
                         // Service-specific public endpoints
-                        .pathMatchers("/api/users/register", "/api/users/activate").permitAll()
-                        .pathMatchers("/api/tenders/public/**").permitAll()
+                        .pathMatchers("/api/users/register").permitAll()
 
                         // Secured endpoints requiring authentication
                         .anyExchange().authenticated()
@@ -67,13 +78,21 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration corsConfig = new CorsConfiguration();
-        corsConfig.setAllowedOrigins(Arrays.asList("*")); // In production, restrict to your domain
-        corsConfig.setMaxAge(3600L);
-        corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        corsConfig.setAllowedHeaders(Arrays.asList("*"));
+        corsConfig.setAllowedOrigins(splitProperty(allowedOrigins));
+        corsConfig.setAllowedMethods(splitProperty(allowedMethods));
+        corsConfig.setAllowedHeaders(splitProperty(allowedHeaders));
+        corsConfig.setMaxAge(corsMaxAge);
+        corsConfig.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", corsConfig);
         return source;
+    }
+
+    private List<String> splitProperty(String value) {
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(entry -> !entry.isEmpty())
+                .toList();
     }
 }

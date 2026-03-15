@@ -49,12 +49,6 @@ public class RouteConfig {
                 // Audit Service Routes
                 .route("audit-service", r -> r.path("/api/audit/**")
                         .uri("lb://audit-service"))
-
-                // Fallback Route
-                .route("fallback", r -> r.path("/**")
-                        .filters(f -> f.rewritePath("/(?<remaining>.*)", "/${remaining}")
-                                .setResponseHeader("X-Gateway-Fallback", "true"))
-                        .uri("lb://user-service"))
                 .build();
     }
 }

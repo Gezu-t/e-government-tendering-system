@@ -25,6 +25,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * REST controller for document management
@@ -47,17 +49,20 @@ public class DocumentController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         log.info("REST request to upload document: {}", metadata.getName());
-        String userId = jwt.getSubject();
-        DocumentResponse response = documentService.uploadDocument(metadata, file, userId);
+        Set<String> userIdentifiers = getUserIdentifiers(jwt);
+        DocumentResponse response = documentService.uploadDocument(metadata, file, primaryUserIdentifier(userIdentifiers));
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get document metadata by ID")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<DocumentResponse> getDocument(@PathVariable Long id) {
+    public ResponseEntity<DocumentResponse> getDocument(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
         log.info("REST request to get document: {}", id);
-        DocumentResponse response = documentService.getDocument(id);
+        DocumentResponse response = documentService.getDocument(id, getUserIdentifiers(jwt), isAdmin(jwt));
         return ResponseEntity.ok(response);
     }
 
@@ -70,11 +75,11 @@ public class DocumentController {
             HttpServletRequest request
     ) {
         log.info("REST request to download document: {}", id);
-        String userId = jwt.getSubject();
         String ipAddress = getClientIp(request);
         String userAgent = request.getHeader("User-Agent");
 
-        DocumentDownloadResponse downloadResponse = documentService.downloadDocument(id, userId, ipAddress, userAgent);
+        DocumentDownloadResponse downloadResponse = documentService.downloadDocument(
+                id, getUserIdentifiers(jwt), isAdmin(jwt), ipAddress, userAgent);
 
         ByteArrayResource resource = new ByteArrayResource(downloadResponse.getContent());
 
@@ -97,8 +102,7 @@ public class DocumentController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         log.info("REST request to update document: {}", id);
-        String userId = jwt.getSubject();
-        DocumentResponse response = documentService.updateDocument(id, request, userId);
+        DocumentResponse response = documentService.updateDocument(id, request, getUserIdentifiers(jwt), isAdmin(jwt));
         return ResponseEntity.ok(response);
     }
 
@@ -110,8 +114,7 @@ public class DocumentController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         log.info("REST request to delete document: {}", id);
-        String userId = jwt.getSubject();
-        documentService.deleteDocument(id, userId);
+        documentService.deleteDocument(id, getUserIdentifiers(jwt), isAdmin(jwt));
         return ResponseEntity.noContent().build();
     }
 
@@ -121,10 +124,12 @@ public class DocumentController {
     public ResponseEntity<Page<DocumentResponse>> listDocumentsByEntity(
             @PathVariable String entityType,
             @PathVariable String entityId,
+            @AuthenticationPrincipal Jwt jwt,
             @PageableDefault(size = 20) Pageable pageable
     ) {
         log.info("REST request to list documents for entity: {}, ID: {}", entityType, entityId);
-        Page<DocumentResponse> response = documentService.listDocumentsByEntity(entityType, entityId, pageable);
+        Page<DocumentResponse> response = documentService.listDocumentsByEntity(
+                entityType, entityId, getUserIdentifiers(jwt), isAdmin(jwt), pageable);
         return ResponseEntity.ok(response);
     }
 
@@ -133,10 +138,11 @@ public class DocumentController {
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<Page<DocumentResponse>> searchDocuments(
             @RequestBody DocumentSearchFilter filter,
+            @AuthenticationPrincipal Jwt jwt,
             @PageableDefault(size = 20) Pageable pageable
     ) {
         log.info("REST request to search documents with filter: {}", filter);
-        Page<DocumentResponse> response = documentService.searchDocuments(filter, pageable);
+        Page<DocumentResponse> response = documentService.searchDocuments(filter, getUserIdentifiers(jwt), isAdmin(jwt), pageable);
         return ResponseEntity.ok(response);
     }
 
@@ -162,5 +168,35 @@ public class DocumentController {
             return xForwardedFor.split(",")[0].trim();
         }
         return request.getRemoteAddr();
+    }
+
+    private boolean isAdmin(Jwt jwt) {
+        if (jwt == null) {
+            return false;
+        }
+        Object rolesClaim = jwt.getClaims().get("roles");
+        if (rolesClaim instanceof java.util.Collection<?> roles) {
+            return roles.stream().anyMatch(role -> "ROLE_ADMIN".equals(String.valueOf(role)));
+        }
+        return rolesClaim != null && rolesClaim.toString().contains("ROLE_ADMIN");
+    }
+
+    private Set<String> getUserIdentifiers(Jwt jwt) {
+        Set<String> identifiers = new LinkedHashSet<>();
+        if (jwt == null) {
+            return identifiers;
+        }
+        if (jwt.getSubject() != null && !jwt.getSubject().isBlank()) {
+            identifiers.add(jwt.getSubject());
+        }
+        Object userIdClaim = jwt.getClaim("userId");
+        if (userIdClaim != null && !userIdClaim.toString().isBlank()) {
+            identifiers.add(userIdClaim.toString());
+        }
+        return identifiers;
+    }
+
+    private String primaryUserIdentifier(Set<String> userIdentifiers) {
+        return userIdentifiers.stream().findFirst().orElse("unknown");
     }
 }

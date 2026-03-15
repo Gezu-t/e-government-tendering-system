@@ -20,6 +20,7 @@ public class TenderDTO {
     private Long id;
     private String title;
     private String description;
+    private String status;
     private LocalDateTime submissionDeadline;
     private LocalDateTime evaluationDeadline;
     private AllocationStrategy allocationStrategy;

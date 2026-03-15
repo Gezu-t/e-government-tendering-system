@@ -9,6 +9,7 @@ import com.egov.tendering.document.dal.model.DocumentStatus;
 import com.egov.tendering.document.dal.repository.DocumentAccessLogRepository;
 import com.egov.tendering.document.dal.repository.DocumentRepository;
 import com.egov.tendering.document.event.DocumentEventPublisher;
+import com.egov.tendering.document.exception.DocumentAccessDeniedException;
 import com.egov.tendering.document.exception.DocumentNotFoundException;
 import com.egov.tendering.document.exception.DocumentStorageException;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +29,11 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -111,10 +115,11 @@ public class DocumentService {
      * Get document by ID
      */
     @Transactional(readOnly = true)
-    public DocumentResponse getDocument(Long id) {
+    public DocumentResponse getDocument(Long id, Collection<String> userIdentifiers, boolean admin) {
         log.info("Getting document with ID: {}", id);
 
         Document document = findDocumentById(id);
+        validateReadAccess(document, userIdentifiers, admin);
         DocumentResponse response = documentMapper.toDocumentResponse(document);
         response.setDownloadUrl(generateDownloadUrl(document.getId()));
 
@@ -125,15 +130,18 @@ public class DocumentService {
      * Download a document
      */
     @Transactional
-    public DocumentDownloadResponse downloadDocument(Long id, String userId, String ipAddress, String userAgent) {
+    public DocumentDownloadResponse downloadDocument(Long id, Collection<String> userIdentifiers, boolean admin, String ipAddress, String userAgent) {
         log.info("Downloading document with ID: {}", id);
 
         Document document = findDocumentById(id);
+        validateReadAccess(document, userIdentifiers, admin);
+
+        String auditUserId = firstIdentifier(userIdentifiers);
 
         // Log the download
         DocumentAccessLog accessLog = DocumentAccessLog.builder()
                 .documentId(document.getId())
-                .userId(userId)
+                .userId(auditUserId)
                 .ipAddress(ipAddress)
                 .userAgent(userAgent)
                 .accessType(AccessType.DOWNLOAD)
@@ -152,7 +160,7 @@ public class DocumentService {
         }
 
         // Publish document downloaded event
-        eventPublisher.publishDocumentDownloadedEvent(document, userId);
+        eventPublisher.publishDocumentDownloadedEvent(document, auditUserId);
 
         return DocumentDownloadResponse.builder()
                 .documentId(document.getId())
@@ -168,10 +176,11 @@ public class DocumentService {
      * Update document metadata
      */
     @Transactional
-    public DocumentResponse updateDocument(Long id, DocumentUpdateRequest request, String userId) {
+    public DocumentResponse updateDocument(Long id, DocumentUpdateRequest request, Collection<String> userIdentifiers, boolean admin) {
         log.info("Updating document with ID: {}", id);
 
         Document document = findDocumentById(id);
+        validateWriteAccess(document, userIdentifiers, admin);
 
         // Update fields if provided
         if (request.getName() != null) {
@@ -197,7 +206,7 @@ public class DocumentService {
         Document updatedDocument = documentRepository.save(document);
 
         // Publish document updated event
-        eventPublisher.publishDocumentUpdatedEvent(updatedDocument, userId);
+        eventPublisher.publishDocumentUpdatedEvent(updatedDocument, firstIdentifier(userIdentifiers));
 
         DocumentResponse response = documentMapper.toDocumentResponse(updatedDocument);
         response.setDownloadUrl(generateDownloadUrl(updatedDocument.getId()));
@@ -209,30 +218,42 @@ public class DocumentService {
      * Delete a document
      */
     @Transactional
-    public void deleteDocument(Long id, String userId) {
+    public void deleteDocument(Long id, Collection<String> userIdentifiers, boolean admin) {
         log.info("Deleting document with ID: {}", id);
 
         Document document = findDocumentById(id);
+        validateWriteAccess(document, userIdentifiers, admin);
         document.setStatus(DocumentStatus.DELETED);
         documentRepository.save(document);
 
         // Publish document deleted event
-        eventPublisher.publishDocumentDeletedEvent(document, userId);
+        eventPublisher.publishDocumentDeletedEvent(document, firstIdentifier(userIdentifiers));
     }
 
     /**
      * List documents for an entity
      */
     @Transactional(readOnly = true)
-    public Page<DocumentResponse> listDocumentsByEntity(String entityType, String entityId, Pageable pageable) {
+    public Page<DocumentResponse> listDocumentsByEntity(String entityType, String entityId, Collection<String> userIdentifiers, boolean admin, Pageable pageable) {
         log.info("Listing documents for entity: {}, ID: {}", entityType, entityId);
 
-        Page<Document> documents = documentRepository.findByEntityTypeAndEntityIdAndStatusNot(
-                com.egov.tendering.document.dal.model.EntityType.valueOf(entityType),
-                entityId,
-                DocumentStatus.DELETED,
-                pageable
-        );
+        Page<Document> documents;
+        if (admin) {
+            documents = documentRepository.findByEntityTypeAndEntityIdAndStatusNot(
+                    com.egov.tendering.document.dal.model.EntityType.valueOf(entityType),
+                    entityId,
+                    DocumentStatus.DELETED,
+                    pageable
+            );
+        } else {
+            documents = documentRepository.findAccessibleByEntityTypeAndEntityIdAndStatusNot(
+                    com.egov.tendering.document.dal.model.EntityType.valueOf(entityType),
+                    entityId,
+                    normalizeIdentifiers(userIdentifiers),
+                    DocumentStatus.DELETED,
+                    pageable
+            );
+        }
 
         return documents.map(document -> {
             DocumentResponse response = documentMapper.toDocumentResponse(document);
@@ -245,16 +266,25 @@ public class DocumentService {
      * Search documents
      */
     @Transactional(readOnly = true)
-    public Page<DocumentResponse> searchDocuments(DocumentSearchFilter filter, Pageable pageable) {
+    public Page<DocumentResponse> searchDocuments(DocumentSearchFilter filter, Collection<String> userIdentifiers, boolean admin, Pageable pageable) {
         log.info("Searching documents with filter: {}", filter);
 
-        // For simplicity, using the name search. In a real implementation,
-        // you would build a more complex query based on the filter
-        Page<Document> documents = documentRepository.findByNameContainingIgnoreCaseAndStatusNot(
-                filter.getSearchTerm(),
-                DocumentStatus.DELETED,
-                pageable
-        );
+        String searchTerm = filter.getSearchTerm() != null ? filter.getSearchTerm() : "";
+        Page<Document> documents;
+        if (admin) {
+            documents = documentRepository.findByNameContainingIgnoreCaseAndStatusNot(
+                    searchTerm,
+                    DocumentStatus.DELETED,
+                    pageable
+            );
+        } else {
+            documents = documentRepository.findAccessibleByNameContainingIgnoreCaseAndStatusNot(
+                    searchTerm,
+                    normalizeIdentifiers(userIdentifiers),
+                    DocumentStatus.DELETED,
+                    pageable
+            );
+        }
 
         return documents.map(document -> {
             DocumentResponse response = documentMapper.toDocumentResponse(document);
@@ -308,6 +338,43 @@ public class DocumentService {
     private Document findDocumentById(Long id) {
         return documentRepository.findByIdAndNotDeleted(id)
                 .orElseThrow(() -> new DocumentNotFoundException("Document not found with ID: " + id));
+    }
+
+    private void validateReadAccess(Document document, Collection<String> userIdentifiers, boolean admin) {
+        if (admin) {
+            return;
+        }
+        boolean owner = normalizeIdentifiers(userIdentifiers).contains(document.getCreatedBy());
+        boolean isPublic = Boolean.TRUE.equals(document.getIsPublic());
+        if (!owner && !isPublic) {
+            throw new DocumentAccessDeniedException("Access denied to document: " + document.getId());
+        }
+    }
+
+    private void validateWriteAccess(Document document, Collection<String> userIdentifiers, boolean admin) {
+        if (admin) {
+            return;
+        }
+        if (!normalizeIdentifiers(userIdentifiers).contains(document.getCreatedBy())) {
+            throw new DocumentAccessDeniedException("Access denied to document: " + document.getId());
+        }
+    }
+
+    private Set<String> normalizeIdentifiers(Collection<String> userIdentifiers) {
+        Set<String> identifiers = new LinkedHashSet<>();
+        if (userIdentifiers == null) {
+            return identifiers;
+        }
+        for (String identifier : userIdentifiers) {
+            if (identifier != null && !identifier.isBlank()) {
+                identifiers.add(identifier);
+            }
+        }
+        return identifiers;
+    }
+
+    private String firstIdentifier(Collection<String> userIdentifiers) {
+        return normalizeIdentifiers(userIdentifiers).stream().findFirst().orElse("unknown");
     }
 
     /**

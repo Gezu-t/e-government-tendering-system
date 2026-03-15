@@ -144,6 +144,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <skip>${docker.skip}</skip>
                     <image>
                         <name>${project.groupId}/document.service:${project.version}</name>
                     </image>

@@ -13,6 +13,11 @@ spring:
   cloud:
     loadbalancer:
       enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8080/auth/realms/egov-tendering}
 
 # Actuator endpoints
 management:
@@ -56,6 +61,17 @@ kafka:
   topics:
     user-events: user-events
     tender-events: tender-events
+
+app:
+  feign:
+    tender-service: tender-service
+  kafka:
+    topics:
+      bid-events: bid-events
+      tender-events: tender-events
+      evaluation-events: evaluation-events
+      tender-evaluation-completed: tender-evaluation-completed
+      contract-events: contract-events
 
 # Kafka Consumer Configuration
 kafka-consumer-config:

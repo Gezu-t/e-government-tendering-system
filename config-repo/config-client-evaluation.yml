@@ -17,11 +17,19 @@ spring:
   # JPA Configuration
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
     show-sql: true
+  flyway:
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8080/auth/realms/egov-tendering}
 
   # Kafka Configuration
   kafka:
@@ -33,7 +41,7 @@ spring:
       group-id: ${spring.application.name}
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.egov.tendering.*"
 
@@ -77,6 +85,9 @@ management:
 
 # Custom Application Properties
 app:
+  committee:
+    default-required-review-count: ${EVALUATION_COMMITTEE_REQUIRED_REVIEW_COUNT:3}
+    default-minimum-approval-count: ${EVALUATION_COMMITTEE_MINIMUM_APPROVAL_COUNT:3}
   # Kafka Topics Configuration
   kafka:
     topics:

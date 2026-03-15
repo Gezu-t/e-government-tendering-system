@@ -4,15 +4,15 @@ spring:
 
   # Database Configuration
   datasource:
-    url: jdbc:mysql://localhost:3306/user_service
-    username: root
-    password: password
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:user_service}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:password}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   # JPA Configuration
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
@@ -43,7 +43,7 @@ eureka:
 app:
   security:
     jwt:
-      secret: your-256-bit-secret-for-user-service
+      secret: ${JWT_SECRET:your-256-bit-secret-for-user-service}
       expiration: 86400000  # 24 hours
 
   validation:
@@ -57,7 +57,7 @@ app:
 
 # Server Configuration
 server:
-  port: 8081
+  port: ${SERVER_PORT:8081}
   servlet:
     context-path: /api/users
   tomcat:
