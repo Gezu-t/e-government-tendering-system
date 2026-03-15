@@ -24,7 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/files")
+@RequestMapping("/api/files")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "File Storage", description = "APIs for file upload, download, and management")

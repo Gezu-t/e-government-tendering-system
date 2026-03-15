@@ -25,7 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 
 @RestController
-@RequestMapping("/api/v1/bids")
+@RequestMapping("/api/bids")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Bid Securities", description = "APIs for managing bid securities")

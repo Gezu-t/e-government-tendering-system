@@ -32,7 +32,7 @@ import java.util.Set;
  * REST controller for document management
  */
 @RestController
-@RequestMapping("/api/v1/documents")
+@RequestMapping("/api/documents")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Document Management", description = "API for document management")
@@ -50,7 +50,7 @@ public class DocumentController {
     ) {
         log.info("REST request to upload document: {}", metadata.getName());
         Set<String> userIdentifiers = getUserIdentifiers(jwt);
-        DocumentResponse response = documentService.uploadDocument(metadata, file, primaryUserIdentifier(userIdentifiers));
+        DocumentResponse response = documentService.uploadDocument(metadata, file, primaryUserIdentifier(jwt, userIdentifiers));
         return ResponseEntity.ok(response);
     }
 
@@ -186,17 +186,23 @@ public class DocumentController {
         if (jwt == null) {
             return identifiers;
         }
-        if (jwt.getSubject() != null && !jwt.getSubject().isBlank()) {
-            identifiers.add(jwt.getSubject());
-        }
         Object userIdClaim = jwt.getClaim("userId");
         if (userIdClaim != null && !userIdClaim.toString().isBlank()) {
             identifiers.add(userIdClaim.toString());
         }
+        if (jwt.getSubject() != null && !jwt.getSubject().isBlank()) {
+            identifiers.add(jwt.getSubject());
+        }
         return identifiers;
     }
 
-    private String primaryUserIdentifier(Set<String> userIdentifiers) {
+    private String primaryUserIdentifier(Jwt jwt, Set<String> userIdentifiers) {
+        if (jwt != null) {
+            Object userIdClaim = jwt.getClaim("userId");
+            if (userIdClaim != null && !userIdClaim.toString().isBlank()) {
+                return userIdClaim.toString();
+            }
+        }
         return userIdentifiers.stream().findFirst().orElse("unknown");
     }
 }

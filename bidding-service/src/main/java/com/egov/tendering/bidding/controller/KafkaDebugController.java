@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 
 @RestController
-@RequestMapping("/api/v1/debug/kafka")
+@RequestMapping("/api/debug/kafka")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Kafka Debug", description = "Debug APIs for testing Kafka event publishing")

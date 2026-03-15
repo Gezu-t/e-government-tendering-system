@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/bids")
+@RequestMapping("/api/bids")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Bid Clarifications", description = "APIs for managing bid clarifications")

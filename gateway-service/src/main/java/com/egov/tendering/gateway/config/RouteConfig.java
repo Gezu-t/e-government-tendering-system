@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Route configuration for the API Gateway.
- * Maps incoming request paths to the appropriate downstream microservices.
+ * All endpoints use the /api/ prefix (no versioning in path).
  */
 @Configuration
 public class RouteConfig {
@@ -43,15 +43,15 @@ public class RouteConfig {
                 // ============================================================
                 .route("bidding-service", r -> r.path("/api/bids/**")
                         .uri("lb://bidding-service"))
-                .route("bidding-v1", r -> r.path("/api/v1/bids/**")
+                .route("bidding-signatures", r -> r.path("/api/signatures/**")
                         .uri("lb://bidding-service"))
-                .route("bidding-signatures", r -> r.path("/api/v1/signatures/**")
+                .route("bidding-anti-collusion", r -> r.path("/api/anti-collusion/**")
                         .uri("lb://bidding-service"))
-                .route("bidding-anti-collusion", r -> r.path("/api/v1/anti-collusion/**")
+                .route("bidding-files", r -> r.path("/api/files/**")
                         .uri("lb://bidding-service"))
-                .route("bidding-files", r -> r.path("/api/v1/files/**")
+                .route("bidding-compliance", r -> r.path("/api/compliance/**")
                         .uri("lb://bidding-service"))
-                .route("bidding-compliance", r -> r.path("/api/v1/compliance/**")
+                .route("bidding-debug", r -> r.path("/api/debug/**")
                         .uri("lb://bidding-service"))
 
                 // ============================================================
@@ -67,15 +67,11 @@ public class RouteConfig {
                 // ============================================================
                 .route("document-service", r -> r.path("/api/documents/**")
                         .uri("lb://document-service"))
-                .route("document-service-v1", r -> r.path("/api/v1/documents/**")
-                        .uri("lb://document-service"))
 
                 // ============================================================
                 // NOTIFICATION SERVICE (port 8086)
                 // ============================================================
                 .route("notification-service", r -> r.path("/api/notifications/**")
-                        .uri("lb://notification-service"))
-                .route("notification-service-v1", r -> r.path("/api/v1/notifications/**")
                         .uri("lb://notification-service"))
 
                 // ============================================================

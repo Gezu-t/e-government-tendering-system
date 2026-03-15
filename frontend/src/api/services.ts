@@ -62,12 +62,12 @@ export const bidApi = {
     apiClient.post(`/api/bids/${bidId}/documents`, file, { headers: { 'Content-Type': 'multipart/form-data' } }),
   // Seal
   getSealStatus: (bidId: number) =>
-    apiClient.get(`/api/v1/bids/${bidId}/seal/status`),
+    apiClient.get(`/api/bids/${bidId}/seal/status`),
   unsealAll: (tenderId: number) =>
-    apiClient.post(`/api/v1/bids/tender/${tenderId}/unseal-all`),
+    apiClient.post(`/api/bids/tender/${tenderId}/unseal-all`),
   // Anti-collusion
   analyzeCollusion: (tenderId: number) =>
-    apiClient.get(`/api/v1/anti-collusion/tender/${tenderId}/analyze`),
+    apiClient.get(`/api/anti-collusion/tender/${tenderId}/analyze`),
 };
 
 // ============================================================

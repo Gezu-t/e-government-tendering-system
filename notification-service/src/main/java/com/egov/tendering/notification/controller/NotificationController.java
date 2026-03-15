@@ -31,7 +31,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/v1/notifications")
+@RequestMapping("/api/notifications")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Notification API", description = "API for managing notifications")
@@ -112,17 +112,17 @@ public class NotificationController {
 
   private Set<String> lookupIdentifiers(Jwt jwt, String requestedUserId) {
     Set<String> identifiers = new LinkedHashSet<>();
-    if (requestedUserId != null && !requestedUserId.isBlank()) {
-      identifiers.add(requestedUserId);
-    }
     if (jwt != null) {
-      if (jwt.getSubject() != null && !jwt.getSubject().isBlank()) {
-        identifiers.add(jwt.getSubject());
-      }
       Object userIdClaim = jwt.getClaim("userId");
       if (userIdClaim != null && !userIdClaim.toString().isBlank()) {
         identifiers.add(userIdClaim.toString());
       }
+      if (jwt.getSubject() != null && !jwt.getSubject().isBlank()) {
+        identifiers.add(jwt.getSubject());
+      }
+    }
+    if (requestedUserId != null && !requestedUserId.isBlank()) {
+      identifiers.add(requestedUserId);
     }
     return identifiers;
   }
