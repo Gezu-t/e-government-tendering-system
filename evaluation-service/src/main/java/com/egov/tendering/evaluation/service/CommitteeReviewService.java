@@ -1,6 +1,8 @@
 package com.egov.tendering.evaluation.service;
 
 import com.egov.tendering.evaluation.dal.dto.CommitteeReviewDTO;
+import com.egov.tendering.evaluation.dal.dto.CommitteeApprovalPolicyDTO;
+import com.egov.tendering.evaluation.dal.dto.CommitteeApprovalPolicyRequest;
 import com.egov.tendering.evaluation.dal.dto.ReviewRequest;
 import com.egov.tendering.evaluation.dal.model.ReviewStatus;
 
@@ -25,4 +27,8 @@ public interface CommitteeReviewService {
     CommitteeReviewDTO getReviewByTenderAndCommitteeMember(Long tenderId, Long committeeMemberId);
 
     boolean isEvaluationApprovedByCommittee(Long tenderId);
+
+    CommitteeApprovalPolicyDTO getApprovalPolicy(Long tenderId);
+
+    CommitteeApprovalPolicyDTO upsertApprovalPolicy(Long tenderId, CommitteeApprovalPolicyRequest request);
 }

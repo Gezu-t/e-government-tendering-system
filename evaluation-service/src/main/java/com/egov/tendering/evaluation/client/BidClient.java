@@ -1,6 +1,6 @@
 package com.egov.tendering.evaluation.client;
 
-import com.egov.tendering.common.dal.dto.BidDTO;
+import com.egov.tendering.dto.BidDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

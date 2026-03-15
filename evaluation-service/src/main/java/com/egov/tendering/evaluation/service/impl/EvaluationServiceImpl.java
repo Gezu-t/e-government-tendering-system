@@ -1,10 +1,10 @@
 package com.egov.tendering.evaluation.service.impl;
 
-import com.egov.tendering.common.dal.dto.BidDTO;
-import com.egov.tendering.common.dal.dto.TenderCriteriaDTO;
+import com.egov.tendering.dto.BidDTO;
+import com.egov.tendering.dto.TenderCriteriaDTO;
 import com.egov.tendering.evaluation.client.BidClient;
 import com.egov.tendering.evaluation.client.TenderClient;
-import com.egov.tendering.common.dal.dto.TenderDTO;
+import com.egov.tendering.dto.TenderDTO;
 import com.egov.tendering.evaluation.dal.dto.*;
 import com.egov.tendering.evaluation.dal.mapper.CriteriaScoreMapper;
 import com.egov.tendering.evaluation.dal.mapper.EvaluationMapper;

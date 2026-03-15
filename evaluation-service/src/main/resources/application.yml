@@ -1,5 +1,5 @@
 server:
-  port: 8086
+  port: ${SERVER_PORT:8087}
   servlet:
     context-path: /evaluation-service
 
@@ -7,13 +7,13 @@ spring:
   application:
     name: evaluation-service
   datasource:
-    url: jdbc:mysql://localhost:3306/egov_evaluation?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: ${MYSQL_USER:root}
-    password: ${MYSQL_PASSWORD:password}
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:evaluation_service}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:password}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
@@ -27,9 +27,17 @@ spring:
       group-id: ${spring.application.name}
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.egov.tendering.*"
+  flyway:
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8080/auth/realms/egov-tendering}
 
 eureka:
   client:
@@ -64,6 +72,9 @@ management:
 
 # Custom application properties
 app:
+  committee:
+    default-required-review-count: ${EVALUATION_COMMITTEE_REQUIRED_REVIEW_COUNT:3}
+    default-minimum-approval-count: ${EVALUATION_COMMITTEE_MINIMUM_APPROVAL_COUNT:3}
   kafka:
     topics:
       evaluation-created: evaluation-created

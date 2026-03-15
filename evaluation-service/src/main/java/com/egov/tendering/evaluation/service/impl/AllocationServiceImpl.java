@@ -1,9 +1,9 @@
 package com.egov.tendering.evaluation.service.impl;
 
-import com.egov.tendering.common.dal.dto.BidDTO;
-import com.egov.tendering.common.dal.dto.BidItemDTO;
-import com.egov.tendering.common.dal.dto.TenderDTO;
-import com.egov.tendering.common.dal.dto.TenderItemDTO;
+import com.egov.tendering.dto.BidDTO;
+import com.egov.tendering.dto.BidItemDTO;
+import com.egov.tendering.dto.TenderDTO;
+import com.egov.tendering.dto.TenderItemDTO;
 import com.egov.tendering.evaluation.client.BidClient;
 import com.egov.tendering.evaluation.client.TenderClient;
 import com.egov.tendering.evaluation.dal.dto.AllocationResultDTO;

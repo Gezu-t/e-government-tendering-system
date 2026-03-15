@@ -1,6 +1,8 @@
 package com.egov.tendering.evaluation.controller;
 
 import com.egov.tendering.evaluation.dal.dto.CommitteeReviewDTO;
+import com.egov.tendering.evaluation.dal.dto.CommitteeApprovalPolicyDTO;
+import com.egov.tendering.evaluation.dal.dto.CommitteeApprovalPolicyRequest;
 import com.egov.tendering.evaluation.dal.dto.ReviewRequest;
 import com.egov.tendering.evaluation.dal.model.ReviewStatus;
 import com.egov.tendering.evaluation.service.CommitteeReviewService;
@@ -9,6 +11,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,10 +38,12 @@ public class CommitteeReviewController {
      * @return The created review
      */
     @PostMapping("/tenders/{tenderId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<CommitteeReviewDTO> createReview(
             @PathVariable Long tenderId,
             @Valid @RequestBody ReviewRequest request,
-            @RequestHeader("X-User-ID") Long committeeMemberId) {
+            @AuthenticationPrincipal Jwt jwt) {
+        Long committeeMemberId = getUserId(jwt);
 
         log.info("Creating review for tender ID: {} by committee member ID: {}",
                 tenderId, committeeMemberId);
@@ -65,6 +72,7 @@ public class CommitteeReviewController {
      * @return The updated review
      */
     @PutMapping("/{reviewId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<CommitteeReviewDTO> updateReview(
             @PathVariable Long reviewId,
             @Valid @RequestBody ReviewRequest request) {
@@ -81,6 +89,7 @@ public class CommitteeReviewController {
      * @return No content response
      */
     @DeleteMapping("/{reviewId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<Void> deleteReview(@PathVariable Long reviewId) {
         log.info("Deleting review ID: {}", reviewId);
         reviewService.deleteReview(reviewId);
@@ -124,6 +133,7 @@ public class CommitteeReviewController {
      * @return List of reviews
      */
     @GetMapping("/members/{committeeMemberId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<List<CommitteeReviewDTO>> getReviewsByCommitteeMember(
             @PathVariable Long committeeMemberId) {
 
@@ -140,6 +150,7 @@ public class CommitteeReviewController {
      * @return The review
      */
     @GetMapping("/tenders/{tenderId}/members/{committeeMemberId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<CommitteeReviewDTO> getReviewByTenderAndCommitteeMember(
             @PathVariable Long tenderId,
             @PathVariable Long committeeMemberId) {
@@ -161,5 +172,32 @@ public class CommitteeReviewController {
         log.info("Checking if evaluation is approved for tender ID: {}", tenderId);
         boolean isApproved = reviewService.isEvaluationApprovedByCommittee(tenderId);
         return ResponseEntity.ok(isApproved);
+    }
+
+    @GetMapping("/tenders/{tenderId}/policy")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
+    public ResponseEntity<CommitteeApprovalPolicyDTO> getApprovalPolicy(@PathVariable Long tenderId) {
+        log.info("Getting committee approval policy for tender ID: {}", tenderId);
+        return ResponseEntity.ok(reviewService.getApprovalPolicy(tenderId));
+    }
+
+    @PutMapping("/tenders/{tenderId}/policy")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
+    public ResponseEntity<CommitteeApprovalPolicyDTO> upsertApprovalPolicy(
+            @PathVariable Long tenderId,
+            @Valid @RequestBody CommitteeApprovalPolicyRequest request) {
+        log.info("Updating committee approval policy for tender ID: {}", tenderId);
+        return ResponseEntity.ok(reviewService.upsertApprovalPolicy(tenderId, request));
+    }
+
+    private Long getUserId(Jwt jwt) {
+        Object userIdClaim = jwt.getClaim("userId");
+        if (userIdClaim instanceof Number number) {
+            return number.longValue();
+        }
+        if (userIdClaim != null) {
+            return Long.parseLong(userIdClaim.toString());
+        }
+        return Long.parseLong(jwt.getSubject());
     }
 }

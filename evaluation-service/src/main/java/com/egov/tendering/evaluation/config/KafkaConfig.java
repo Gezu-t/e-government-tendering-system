@@ -9,8 +9,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.util.backoff.FixedBackOff;
 
 /**
@@ -48,15 +46,5 @@ public class KafkaConfig {
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
 
         return factory;
-    }
-
-    /**
-     * Configure the deserializer for JSON messages
-     */
-    @Bean
-    public ErrorHandlingDeserializer<Object> errorHandlingDeserializer() {
-        JsonDeserializer<Object> jsonDeserializer = new JsonDeserializer<>();
-        jsonDeserializer.addTrustedPackages("com.egov.tendering.*");
-        return new ErrorHandlingDeserializer<>(jsonDeserializer);
     }
 }

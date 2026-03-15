@@ -6,6 +6,7 @@ import com.egov.tendering.evaluation.service.TenderRankingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,6 +30,7 @@ public class TenderRankingController {
      * @return List of bid rankings
      */
     @PostMapping("/tenders/{tenderId}/calculate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<List<TenderRankingDTO>> calculateBidRankings(@PathVariable Long tenderId) {
         log.info("Calculating bid rankings for tender ID: {}", tenderId);
 
@@ -75,6 +77,7 @@ public class TenderRankingController {
      * @return Empty response
      */
     @DeleteMapping("/tenders/{tenderId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<Void> clearRankings(@PathVariable Long tenderId) {
         log.info("Clearing rankings for tender ID: {}", tenderId);
 

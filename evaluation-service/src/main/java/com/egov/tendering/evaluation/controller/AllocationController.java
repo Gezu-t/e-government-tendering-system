@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -34,6 +35,7 @@ public class AllocationController {
      * @return List of allocated items
      */
     @PostMapping("/tenders/{tenderId}/single")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<List<AllocationResultDTO>> allocateSingleWinner(@PathVariable Long tenderId) {
         log.info("Allocating single winner for tender ID: {}", tenderId);
 
@@ -51,6 +53,7 @@ public class AllocationController {
      * @return List of allocated items
      */
     @PostMapping("/tenders/{tenderId}/cooperative")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<List<AllocationResultDTO>> allocateCooperatively(@PathVariable Long tenderId) {
         log.info("Allocating cooperatively for tender ID: {}", tenderId);
 
@@ -69,6 +72,7 @@ public class AllocationController {
      * @return List of allocated items
      */
     @PostMapping("/tenders/{tenderId}/competitive")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<List<AllocationResultDTO>> allocateCompetitively(
             @PathVariable Long tenderId,
             @Valid @RequestBody AllocationRequest request) {
@@ -121,6 +125,7 @@ public class AllocationController {
      * @return Empty response
      */
     @DeleteMapping("/tenders/{tenderId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<Void> clearAllocations(@PathVariable Long tenderId) {
         log.info("Clearing allocations for tender ID: {}", tenderId);
 

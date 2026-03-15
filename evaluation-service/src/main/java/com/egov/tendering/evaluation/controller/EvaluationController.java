@@ -9,6 +9,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,10 +23,12 @@ public class EvaluationController {
     private final EvaluationService evaluationService;
 
     @PostMapping("/tenders/{tenderId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<EvaluationDTO> createEvaluation(
             @PathVariable Long tenderId,
             @Valid @RequestBody EvaluationRequest request,
-            @RequestHeader("X-User-ID") Long evaluatorId) {
+            @AuthenticationPrincipal Jwt jwt) {
+        Long evaluatorId = getUserId(jwt);
 
         log.info("Creating evaluation for tender ID: {} by event ID: {}", tenderId, evaluatorId);
         EvaluationDTO createdEvaluation = evaluationService.createEvaluation(tenderId, request, evaluatorId);
@@ -38,6 +43,7 @@ public class EvaluationController {
     }
 
     @PutMapping("/{evaluationId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<EvaluationDTO> updateEvaluation(
             @PathVariable Long evaluationId,
             @Valid @RequestBody EvaluationRequest request) {
@@ -48,6 +54,7 @@ public class EvaluationController {
     }
 
     @PatchMapping("/{evaluationId}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EVALUATOR')")
     public ResponseEntity<EvaluationDTO> updateEvaluationStatus(
             @PathVariable Long evaluationId,
             @RequestParam EvaluationStatus status) {
@@ -57,4 +64,14 @@ public class EvaluationController {
         return ResponseEntity.ok(updatedEvaluation);
     }
 
+    private Long getUserId(Jwt jwt) {
+        Object userIdClaim = jwt.getClaim("userId");
+        if (userIdClaim instanceof Number number) {
+            return number.longValue();
+        }
+        if (userIdClaim != null) {
+            return Long.parseLong(userIdClaim.toString());
+        }
+        return Long.parseLong(jwt.getSubject());
+    }
 }
