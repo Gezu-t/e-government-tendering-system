@@ -86,14 +86,19 @@ public class MilestoneServiceImpl implements MilestoneService {
 
     @Override
     @Transactional
-    public ContractMilestoneDTO completeMilestone(Long milestoneId, String username) {
+    public ContractMilestoneDTO completeMilestone(Long contractId, Long milestoneId, String username) {
         log.info("Completing milestone with ID: {}", milestoneId);
 
+        Objects.requireNonNull(contractId, "Contract ID cannot be null");
         Objects.requireNonNull(milestoneId, "Milestone ID cannot be null");
         Objects.requireNonNull(username, "Username cannot be null");
 
         ContractMilestone milestone = milestoneRepository.findById(milestoneId)
                 .orElseThrow(() -> new MilestoneNotFoundException("Milestone not found with ID: " + milestoneId));
+
+        if (!contractId.equals(milestone.getContract().getId())) {
+            throw new IllegalArgumentException("Milestone does not belong to contract " + contractId);
+        }
 
         if (milestone.getStatus() != MilestoneStatus.PENDING && milestone.getStatus() != MilestoneStatus.OVERDUE) {
             throw new IllegalStateException("Only pending or overdue milestones can be completed");

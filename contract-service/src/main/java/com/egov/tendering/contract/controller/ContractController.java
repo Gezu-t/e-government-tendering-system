@@ -12,6 +12,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,9 +28,11 @@ public class ContractController {
   private final ContractService contractService;
 
   @PostMapping
+  @PreAuthorize("hasAnyRole('ADMIN', 'TENDEREE')")
   public ResponseEntity<ContractDTO> createContract(
           @Valid @RequestBody CreateContractRequest request,
-          @RequestHeader("X-User-ID") String username) {
+          @AuthenticationPrincipal Jwt jwt) {
+    String username = jwt.getSubject();
 
     log.info("Received request to create contract: {}", request.getTitle());
     ContractDTO createdContract = contractService.createContract(request, username);
@@ -35,6 +40,7 @@ public class ContractController {
   }
 
   @GetMapping("/{contractId}")
+  @PreAuthorize("@contractSecurityUtil.canAccessContract(#contractId)")
   public ResponseEntity<ContractDTO> getContractById(@PathVariable Long contractId) {
     log.info("Received request to get contract by ID: {}", contractId);
     ContractDTO contract = contractService.getContractById(contractId);
@@ -42,6 +48,7 @@ public class ContractController {
   }
 
   @GetMapping("/tender/{tenderId}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'TENDEREE')")
   public ResponseEntity<List<ContractDTO>> getContractsByTenderId(@PathVariable Long tenderId) {
     log.info("Received request to get contracts by tender ID: {}", tenderId);
     List<ContractDTO> contracts = contractService.getContractsByTenderId(tenderId);
@@ -49,6 +56,7 @@ public class ContractController {
   }
 
   @GetMapping("/bidder/{bidderId}")
+  @PreAuthorize("@contractSecurityUtil.canAccessBidderContracts(#bidderId)")
   public ResponseEntity<Page<ContractDTO>> getContractsByBidderId(
           @PathVariable Long bidderId,
           @PageableDefault(size = 10) Pageable pageable) {
@@ -59,6 +67,7 @@ public class ContractController {
   }
 
   @GetMapping
+  @PreAuthorize("hasAnyRole('ADMIN', 'TENDEREE')")
   public ResponseEntity<Page<ContractDTO>> searchContracts(
           @RequestParam(required = false) String title,
           @RequestParam(required = false) ContractStatus status,
@@ -73,10 +82,12 @@ public class ContractController {
   }
 
   @PatchMapping("/{contractId}/status")
+  @PreAuthorize("@contractSecurityUtil.canManageContract(#contractId)")
   public ResponseEntity<ContractDTO> updateContractStatus(
           @PathVariable Long contractId,
           @RequestParam ContractStatus status,
-          @RequestHeader("X-User-ID") String username) {
+          @AuthenticationPrincipal Jwt jwt) {
+    String username = jwt.getSubject();
 
     log.info("Received request to update contract status to {} for contract ID: {}", status, contractId);
     ContractDTO updatedContract = contractService.updateContractStatus(contractId, status, username);
@@ -84,9 +95,11 @@ public class ContractController {
   }
 
   @PostMapping("/{contractId}/activate")
+  @PreAuthorize("@contractSecurityUtil.canManageContract(#contractId)")
   public ResponseEntity<ContractDTO> activateContract(
           @PathVariable Long contractId,
-          @RequestHeader("X-User-ID") String username) {
+          @AuthenticationPrincipal Jwt jwt) {
+    String username = jwt.getSubject();
 
     log.info("Received request to activate contract with ID: {}", contractId);
     ContractDTO activatedContract = contractService.activateContract(contractId, username);
@@ -94,9 +107,11 @@ public class ContractController {
   }
 
   @PostMapping("/{contractId}/complete")
+  @PreAuthorize("@contractSecurityUtil.canManageContract(#contractId)")
   public ResponseEntity<ContractDTO> completeContract(
           @PathVariable Long contractId,
-          @RequestHeader("X-User-ID") String username) {
+          @AuthenticationPrincipal Jwt jwt) {
+    String username = jwt.getSubject();
 
     log.info("Received request to complete contract with ID: {}", contractId);
     ContractDTO completedContract = contractService.completeContract(contractId, username);
@@ -104,10 +119,12 @@ public class ContractController {
   }
 
   @PostMapping("/{contractId}/terminate")
+  @PreAuthorize("@contractSecurityUtil.canManageContract(#contractId)")
   public ResponseEntity<ContractDTO> terminateContract(
           @PathVariable Long contractId,
           @RequestParam String reason,
-          @RequestHeader("X-User-ID") String username) {
+          @AuthenticationPrincipal Jwt jwt) {
+    String username = jwt.getSubject();
 
     log.info("Received request to terminate contract with ID: {}", contractId);
     ContractDTO terminatedContract = contractService.terminateContract(contractId, reason, username);

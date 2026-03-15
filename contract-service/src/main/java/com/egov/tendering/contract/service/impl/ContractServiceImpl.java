@@ -1,5 +1,6 @@
 package com.egov.tendering.contract.service.impl;
 
+import com.egov.tendering.contract.client.BidClient;
 import com.egov.tendering.contract.dal.dto.ContractDTO;
 import com.egov.tendering.contract.dal.dto.CreateContractRequest;
 import com.egov.tendering.contract.dal.mapper.ContractMapper;
@@ -10,6 +11,8 @@ import com.egov.tendering.contract.dal.repository.ContractRepository;
 import com.egov.tendering.contract.event.ContractEventPublisher;
 import com.egov.tendering.contract.exception.ContractNotFoundException;
 import com.egov.tendering.contract.service.ContractService;
+import com.egov.tendering.dto.BidDTO;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -21,7 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,16 +34,23 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ContractServiceImpl implements ContractService {
 
+  private static final Map<ContractStatus, EnumSet<ContractStatus>> ALLOWED_MANUAL_STATUS_TRANSITIONS = Map.of(
+          ContractStatus.DRAFT, EnumSet.of(ContractStatus.PENDING_SIGNATURE, ContractStatus.CANCELLED),
+          ContractStatus.PENDING_SIGNATURE, EnumSet.of(ContractStatus.CANCELLED)
+  );
+
   private final ContractRepository contractRepository;
   private final ContractItemRepository itemRepository;
   private final ContractMilestoneRepository milestoneRepository;
   private final ContractMapper contractMapper;
   private final ContractEventPublisher eventPublisher;
+  private final BidClient bidClient;
 
   @Override
   @Transactional
   public ContractDTO createContract(CreateContractRequest request, String username) {
     log.info("Creating new contract for tender: {} and bidder: {}", request.getTenderId(), request.getBidderId());
+    validateAwardedBidEligibility(request);
 
     // Calculate total value from items
     BigDecimal totalValue = request.getItems().stream()
@@ -160,6 +172,7 @@ public class ContractServiceImpl implements ContractService {
             .orElseThrow(() -> new ContractNotFoundException("Contract not found with ID: " + contractId));
 
     ContractStatus oldStatus = contract.getStatus();
+    validateManualContractStatusTransition(oldStatus, newStatus);
     contract.setStatus(newStatus);
     contract.setUpdatedBy(username);
 
@@ -258,5 +271,47 @@ public class ContractServiceImpl implements ContractService {
     }
 
     log.info("Completed {} expired contracts", expiredContracts.size());
+  }
+
+  private void validateManualContractStatusTransition(ContractStatus currentStatus, ContractStatus newStatus) {
+    if (currentStatus == newStatus) {
+      return;
+    }
+
+    EnumSet<ContractStatus> allowedTargets = ALLOWED_MANUAL_STATUS_TRANSITIONS.get(currentStatus);
+    if (allowedTargets == null || !allowedTargets.contains(newStatus)) {
+      throw new IllegalStateException(
+              "Manual contract status transition from " + currentStatus + " to " + newStatus + " is not allowed");
+    }
+  }
+
+  private void validateAwardedBidEligibility(CreateContractRequest request) {
+    if (contractRepository.existsByTenderIdAndBidderId(request.getTenderId(), request.getBidderId())) {
+      throw new IllegalStateException("A contract already exists for this tender and bidder");
+    }
+
+    List<BidDTO> awardedBids;
+    try {
+      awardedBids = bidClient.getAwardedBidsByTender(request.getTenderId());
+    } catch (FeignException ex) {
+      throw new IllegalStateException(
+              "Unable to validate awarded bid for tender " + request.getTenderId(), ex);
+    }
+
+    if (awardedBids == null || awardedBids.isEmpty()) {
+      throw new IllegalStateException("Cannot create contract before a bidder is awarded for this tender");
+    }
+
+    List<BidDTO> matchingAwardedBids = awardedBids.stream()
+            .filter(bid -> request.getBidderId().equals(bid.getTendererId()))
+            .toList();
+
+    if (matchingAwardedBids.isEmpty()) {
+      throw new IllegalStateException("The requested bidder is not the awarded bidder for this tender");
+    }
+
+    if (matchingAwardedBids.size() > 1) {
+      throw new IllegalStateException("Multiple awarded bids exist for this tender and bidder");
+    }
   }
 }

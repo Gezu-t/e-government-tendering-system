@@ -19,6 +19,8 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
 
     Page<Contract> findByBidderId(Long bidderId, Pageable pageable);
 
+    boolean existsByTenderIdAndBidderId(Long tenderId, Long bidderId);
+
     @Query("SELECT c FROM Contract c WHERE " +
             "(:title IS NULL OR LOWER(c.title) LIKE LOWER(CONCAT('%', :title, '%'))) AND " +
             "(:status IS NULL OR c.status = :status) AND " +

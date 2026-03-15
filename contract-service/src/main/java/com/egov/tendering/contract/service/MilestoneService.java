@@ -9,7 +9,7 @@ public interface MilestoneService {
 
     ContractMilestoneDTO addMilestone(Long contractId, ContractMilestoneDTO milestoneDTO, String username);
 
-    ContractMilestoneDTO completeMilestone(Long milestoneId, String username);
+    ContractMilestoneDTO completeMilestone(Long contractId, Long milestoneId, String username);
 
     void checkForOverdueMilestones();
 }
