@@ -12,7 +12,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Collection;
 import java.util.Date;
 import java.util.stream.Collectors;
@@ -27,7 +29,7 @@ public class JwtTokenProvider {
     public JwtTokenProvider(
             @Value("${app.security.jwt.secret}") String jwtSecret,
             @Value("${app.security.jwt.expiration}") long jwtExpirationInMs) {
-        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
         this.jwtExpirationInMs = jwtExpirationInMs;
     }
 
@@ -50,15 +52,29 @@ public class JwtTokenProvider {
     }
 
     public String generateToken(String username) {
+        return generateToken(username, null, Collections.emptyList());
+    }
+
+    public String generateToken(String username, Collection<String> authorities) {
+        return generateToken(username, null, authorities);
+    }
+
+    public String generateToken(String username, Long userId, Collection<String> authorities) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
-        return Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .setSubject(username)
+                .claim("roles", String.join(",", authorities))
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .signWith(key, SignatureAlgorithm.HS512)
-                .compact();
+                .signWith(key, SignatureAlgorithm.HS512);
+
+        if (userId != null) {
+            builder.claim("userId", userId);
+        }
+
+        return builder.compact();
     }
 
     public String getUsernameFromToken(String token) {
@@ -78,7 +94,14 @@ public class JwtTokenProvider {
                 .parseClaimsJws(token)
                 .getBody();
 
-        return Arrays.stream(claims.get("roles").toString().split(","))
+        Object rolesClaim = claims.get("roles");
+        if (rolesClaim == null || rolesClaim.toString().isBlank()) {
+            return Collections.emptyList();
+        }
+
+        return Arrays.stream(rolesClaim.toString().split(","))
+                .map(String::trim)
+                .filter(role -> !role.isEmpty())
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
     }

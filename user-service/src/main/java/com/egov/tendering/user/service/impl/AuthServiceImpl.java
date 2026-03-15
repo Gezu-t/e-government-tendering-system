@@ -4,6 +4,7 @@ package com.egov.tendering.user.service.impl;
 import com.egov.tendering.user.dal.dto.AuthResponse;
 import com.egov.tendering.user.dal.dto.LoginRequest;
 import com.egov.tendering.user.dal.model.User;
+import com.egov.tendering.user.exception.UserNotFoundException;
 import com.egov.tendering.user.dal.repository.UserRepository;
 import com.egov.tendering.user.event.UserEventPublisher;
 import com.egov.tendering.user.exception.InvalidCredentialsException;
@@ -17,6 +18,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -42,12 +45,18 @@ public class AuthServiceImpl implements AuthService {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            String token = tokenProvider.generateToken(authentication);
-
             User user = userRepository.findByUsernameOrEmail(
                             request.getUsernameOrEmail(),
                             request.getUsernameOrEmail())
                     .orElseThrow(() -> new InvalidCredentialsException("User not found"));
+
+            String token = tokenProvider.generateToken(
+                    user.getUsername(),
+                    user.getId(),
+                    authentication.getAuthorities().stream()
+                            .map(authority -> authority.getAuthority())
+                            .toList()
+            );
 
             // Publish login event
             eventPublisher.publishUserLoginEvent(user);
@@ -67,7 +76,14 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String generateToken(String username) {
-        return tokenProvider.generateToken(username);
+        User user = userRepository.findByUsernameOrEmail(username, username)
+                .orElseThrow(() -> new UserNotFoundException("User not found with username or email: " + username));
+
+        return tokenProvider.generateToken(
+                user.getUsername(),
+                user.getId(),
+                List.of("ROLE_" + user.getRole().name())
+        );
     }
 
     @Override

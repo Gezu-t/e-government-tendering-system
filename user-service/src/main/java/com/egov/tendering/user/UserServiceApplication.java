@@ -8,7 +8,6 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 @EnableDiscoveryClient
 public class UserServiceApplication {
     public static void main(String[] args) {
-        System.setProperty("spring.profiles.active", "dev");
         SpringApplication.run(UserServiceApplication.class, args);
     }
 }

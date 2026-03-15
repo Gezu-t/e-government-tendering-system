@@ -17,7 +17,7 @@ public class KafkaConfig {
     @Bean
     @ConditionalOnProperty(name = "spring.kafka.enabled", havingValue = "true", matchIfMissing = true)
     public NewTopic userEventsTopic() {
-        return TopicBuilder.name("user-events")
+        return TopicBuilder.name(userEventsTopic)
                 .partitions(3)
                 .replicas(1)
                 .build();

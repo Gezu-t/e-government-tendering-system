@@ -2,6 +2,7 @@ package com.egov.tendering.user.dal.dto;
 
 
 import com.egov.tendering.user.dal.model.UserRole;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,5 +30,6 @@ public class RegistrationRequest {
     @NotNull(message = "User role is required")
     private UserRole role;
 
+    @Valid
     private OrganizationRequest organization;
 }

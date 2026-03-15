@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -24,11 +25,13 @@ import org.springframework.web.bind.annotation.*;
 public class OrganizationController {
 
     private final OrganizationService organizationService;
+    private final com.egov.tendering.user.security.UserSecurityUtil userSecurityUtil;
 
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<OrganizationDTO> createOrganization(
-            @Valid @RequestBody OrganizationRequest request,
-            @RequestHeader("X-User-ID") Long creatorUserId) {
+            @Valid @RequestBody OrganizationRequest request) {
+        Long creatorUserId = userSecurityUtil.getCurrentUserId();
         log.info("Creating organization: {} for user ID: {}", request.getName(), creatorUserId);
         OrganizationDTO createdOrg = organizationService.createOrganization(request, creatorUserId);
         return new ResponseEntity<>(createdOrg, HttpStatus.CREATED);
@@ -58,6 +61,7 @@ public class OrganizationController {
     }
 
     @PatchMapping("/{organizationId}/status")
+    @PreAuthorize("@userSecurityUtil.canManageOrganization(#organizationId)")
     public ResponseEntity<OrganizationDTO> updateOrganizationStatus(
             @PathVariable Long organizationId,
             @RequestParam OrganizationStatus status) {
@@ -67,6 +71,7 @@ public class OrganizationController {
     }
 
     @DeleteMapping("/{organizationId}")
+    @PreAuthorize("@userSecurityUtil.canManageOrganization(#organizationId)")
     public ResponseEntity<Void> deleteOrganization(@PathVariable Long organizationId) {
         log.info("Deleting organization with ID: {}", organizationId);
         organizationService.deleteOrganization(organizationId);
@@ -74,6 +79,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/{organizationId}/users/{userId}")
+    @PreAuthorize("@userSecurityUtil.canManageOrganization(#organizationId)")
     public ResponseEntity<Void> addUserToOrganization(
             @PathVariable Long organizationId,
             @PathVariable Long userId,
@@ -84,6 +90,7 @@ public class OrganizationController {
     }
 
     @DeleteMapping("/{organizationId}/users/{userId}")
+    @PreAuthorize("@userSecurityUtil.canManageOrganization(#organizationId)")
     public ResponseEntity<Void> removeUserFromOrganization(
             @PathVariable Long organizationId,
             @PathVariable Long userId) {

@@ -8,10 +8,10 @@ import com.egov.tendering.user.dal.mapper.UserMapper;
 import com.egov.tendering.user.dal.model.*;
 import com.egov.tendering.user.dal.repository.UserRepository;
 import com.egov.tendering.user.event.UserEventPublisher;
+import com.egov.tendering.user.exception.DuplicateResourceException;
 import com.egov.tendering.user.exception.UserNotFoundException;
 import com.egov.tendering.user.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.apache.kafka.common.errors.DuplicateResourceException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
