@@ -48,6 +48,24 @@ public class AuditEventConsumer {
         processEvent(event, "Contract", "Committee");
     }
 
+    @KafkaListener(topics = "${app.kafka.topics.bid-events:bid-events}", groupId = "${spring.application.name}")
+    public void listenBidEvents(Object event) {
+        log.info("Received bid event: {}", event);
+        processEvent(event, "Bid", "Tenderer");
+    }
+
+    @KafkaListener(topics = "${app.kafka.topics.user-events:user-events}", groupId = "${spring.application.name}")
+    public void listenUserEvents(Object event) {
+        log.info("Received user event: {}", event);
+        processEvent(event, "User", "System");
+    }
+
+    @KafkaListener(topics = "${app.kafka.topics.notification-events:notification-events}", groupId = "${spring.application.name}")
+    public void listenNotificationEvents(Object event) {
+        log.info("Received notification event: {}", event);
+        processEvent(event, "Notification", "System");
+    }
+
     private void processEvent(Object event, String entityType, String module) {
         try {
             Map<String, Object> eventData = toEventData(event);

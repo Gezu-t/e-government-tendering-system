@@ -34,6 +34,16 @@ public class UserController {
     return ResponseEntity.ok(user);
   }
 
+  /**
+   * Internal endpoint for service-to-service calls (evaluation-service uses this)
+   */
+  @GetMapping("/{userId}/username")
+  public ResponseEntity<String> getUsernameById(@PathVariable Long userId) {
+    log.info("Fetching username for user ID: {}", userId);
+    UserDTO user = userService.getUserById(userId);
+    return ResponseEntity.ok(user.getUsername());
+  }
+
   @GetMapping("/username/{username}")
   @PreAuthorize("@userSecurityUtil.canAccessUsername(#username)")
   public ResponseEntity<UserDTO> getUserByUsername(@PathVariable String username) {
