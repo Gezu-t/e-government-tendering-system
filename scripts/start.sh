@@ -230,10 +230,20 @@ start_service() {
   local pid_file="$PROJECT_ROOT/.pids/${name}.pid"
   local log_file="$PROJECT_ROOT/logs/${name}.log"
 
-  # Check if already running
+  # Check if already running AND healthy
   if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
-    log_warn "$name already running (PID: $(cat "$pid_file"))"
-    return 0
+    if curl -s "http://localhost:$port/actuator/health" &>/dev/null; then
+      log_warn "$name already running (PID: $(cat "$pid_file"))"
+      return 0
+    else
+      log_info "$name has stale PID $(cat "$pid_file"), killing and restarting..."
+      kill "$(cat "$pid_file")" 2>/dev/null || true
+      sleep 2
+      rm -f "$pid_file"
+    fi
+  elif [ -f "$pid_file" ]; then
+    log_info "$name has dead PID file, cleaning up..."
+    rm -f "$pid_file"
   fi
 
   local existing_port_pid
@@ -296,8 +306,9 @@ start_service() {
   fi
 
   # Start in background
-  nohup java "${java_opts[@]}" > "$log_file" 2>&1 &
+  nohup java "${java_opts[@]}" < /dev/null > "$log_file" 2>&1 &
   local pid=$!
+  disown "$pid" 2>/dev/null || true
   echo "$pid" > "$pid_file"
 
   # Wait for startup
