@@ -3,3 +3,14 @@ spring:
     config:
       allow-override: true
       override-none: true
+
+# Canonical JWT claim-name schema — single source of truth for all services.
+# Each service reads these via @Value("${app.security.jwt.claim-*}").
+# Changing a name here propagates to every service on next restart.
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      claim-roles: roles
+      claim-user-id: userId
+      claim-permissions: permissions

@@ -59,7 +59,7 @@ public class AuthServiceImpl implements AuthService {
                             .toList()
             );
 
-            // Publish login event
+            // Publish login event — fire-and-forget; failures are logged by UserEventPublisher
             eventPublisher.publishUserLoginEvent(user);
 
             return AuthResponse.builder()

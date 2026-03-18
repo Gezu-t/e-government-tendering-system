@@ -13,10 +13,12 @@ import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
@@ -25,12 +27,21 @@ public class JwtTokenProvider {
 
     private final Key key;
     private final long jwtExpirationInMs;
+    private final String rolesClaimName;
+    private final String permissionsClaimName;
+    private final String userIdClaimName;
 
     public JwtTokenProvider(
             @Value("${app.security.jwt.secret}") String jwtSecret,
-            @Value("${app.security.jwt.expiration}") long jwtExpirationInMs) {
+            @Value("${app.security.jwt.expiration}") long jwtExpirationInMs,
+            @Value("${app.security.jwt.claim-roles:roles}") String rolesClaimName,
+            @Value("${app.security.jwt.claim-permissions:permissions}") String permissionsClaimName,
+            @Value("${app.security.jwt.claim-user-id:userId}") String userIdClaimName) {
         this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
         this.jwtExpirationInMs = jwtExpirationInMs;
+        this.rolesClaimName = rolesClaimName;
+        this.permissionsClaimName = permissionsClaimName;
+        this.userIdClaimName = userIdClaimName;
     }
 
     public String generateToken(Authentication authentication) {
@@ -38,21 +49,19 @@ public class JwtTokenProvider {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
-        // "roles" claim includes ROLE_* + permissions for downstream services
-        String allAuthorities = authentication.getAuthorities().stream()
+        List<String> allAuthorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.joining(","));
+                .collect(Collectors.toList());
 
-        // Separate permissions claim for fine-grained access control
-        String permissions = authentication.getAuthorities().stream()
+        List<String> permissions = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .filter(a -> !a.startsWith("ROLE_"))
-                .collect(Collectors.joining(","));
+                .collect(Collectors.toList());
 
         return Jwts.builder()
                 .setSubject(userPrincipal.getUsername())
-                .claim("roles", allAuthorities)
-                .claim("permissions", permissions)
+                .claim(rolesClaimName, allAuthorities)
+                .claim(permissionsClaimName, permissions)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS512)
@@ -71,20 +80,20 @@ public class JwtTokenProvider {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
-        String permissions = authorities.stream()
+        List<String> permissionsList = authorities.stream()
                 .filter(a -> !a.startsWith("ROLE_"))
-                .collect(Collectors.joining(","));
+                .collect(Collectors.toList());
 
         JwtBuilder builder = Jwts.builder()
                 .setSubject(username)
-                .claim("roles", String.join(",", authorities))
-                .claim("permissions", permissions)
+                .claim(rolesClaimName, new ArrayList<>(authorities))
+                .claim(permissionsClaimName, permissionsList)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS512);
 
         if (userId != null) {
-            builder.claim("userId", userId);
+            builder.claim(userIdClaimName, userId);
         }
 
         return builder.compact();
@@ -107,14 +116,23 @@ public class JwtTokenProvider {
                 .parseClaimsJws(token)
                 .getBody();
 
-        Object rolesClaim = claims.get("roles");
-        if (rolesClaim == null || rolesClaim.toString().isBlank()) {
+        Object rolesClaim = claims.get(rolesClaimName);
+        if (rolesClaim == null) {
             return Collections.emptyList();
         }
-
-        return Arrays.stream(rolesClaim.toString().split(","))
+        if (rolesClaim instanceof List<?> list) {
+            return list.stream()
+                    .map(Object::toString)
+                    .filter(r -> !r.isBlank())
+                    .map(SimpleGrantedAuthority::new)
+                    .collect(Collectors.toList());
+        }
+        // Fallback: comma-separated string (legacy tokens)
+        String rolesStr = rolesClaim.toString();
+        if (rolesStr.isBlank()) return Collections.emptyList();
+        return Arrays.stream(rolesStr.split(","))
                 .map(String::trim)
-                .filter(role -> !role.isEmpty())
+                .filter(r -> !r.isEmpty())
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
     }

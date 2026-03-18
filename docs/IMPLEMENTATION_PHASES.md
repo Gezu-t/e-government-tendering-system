@@ -21,7 +21,7 @@ Based on research by Simon Fong and Zhuang Yan:
 | 10 | Document Management & Digital Signatures | **Done** | DONE |
 | 11 | Reporting, Analytics & Decision Support | **Partial** | MEDIUM |
 | 12 | Frontend / Web Portal | **Done** | DONE |
-| 13 | Testing & Quality Assurance | **Partial** | HIGH |
+| 13 | Testing & Quality Assurance | **Partial** (E2E + coverage threshold pending) | HIGH |
 | 14 | DevOps, CI/CD & Deployment | **Done** | DONE |
 | 15 | Security Hardening & Compliance | Partial | HIGH |
 | 16 | Performance Optimization & BPR | Not Started | LOW |
@@ -163,8 +163,19 @@ Based on research by Simon Fong and Zhuang Yan:
 - [x] Unit tests for tender-service (TenderServiceImpl, TenderController with MockMvc)
 - [x] Unit tests for bidding-service (BidSealingServiceImpl, AntiCollusionServiceImpl)
 - [x] Unit tests for evaluation-service (EvaluationServiceImpl, MultiCriteriaEvaluationServiceImpl)
-- [ ] TODO: Integration tests (Testcontainers), E2E tests, performance tests, security tests
-- [ ] TODO: Target 80% code coverage
+- [x] Integration tests (Testcontainers MySQL) for user-service (AuthIntegrationTest)
+- [x] Integration tests (Testcontainers MySQL) for tender-service (TenderIntegrationTest — lifecycle, amendments, pre-bid Q&A)
+- [x] Integration tests (Testcontainers MySQL) for bidding-service (BidIntegrationTest)
+- [x] Integration tests (Testcontainers MySQL) for evaluation-service (EvaluationIntegrationTest)
+- [x] Integration tests (Testcontainers MySQL) for contract-service (ContractIntegrationTest — lifecycle, milestones, amendments)
+- [x] Integration tests (Testcontainers MySQL) for audit-service (AuditIntegrationTest — report endpoints)
+- [x] Integration tests (Testcontainers MySQL) for notification-service (NotificationIntegrationTest — send, read, unread count)
+- [x] Integration tests (Testcontainers MySQL) for document-service (DocumentIntegrationTest — upload, download, list)
+- [x] Gateway security smoke tests (GatewaySecurityTest — public paths, 401 enforcement, HS512 token round-trip)
+- [x] JaCoCo code coverage reporting wired into build (mvn verify generates target/site/jacoco/index.html)
+- [ ] TODO: E2E tests (full stack, cross-service flows)
+- [ ] TODO: Performance/load tests
+- [ ] TODO: Enforce 80% minimum line coverage threshold in JaCoCo check goal
 
 ## Phase 14: DevOps, CI/CD & Deployment - DONE
 

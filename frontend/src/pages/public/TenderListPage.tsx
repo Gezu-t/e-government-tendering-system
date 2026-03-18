@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Table, Tag, Input, Select, Card, Typography, Space, Button, Flex } from 'antd';
 import { SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -22,17 +22,22 @@ export default function TenderListPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TenderStatus | undefined>();
 
-  const fetchTenders = async () => {
+  // Keep a ref so fetchTenders can always read the latest search value without
+  // adding it to the useCallback deps (which would auto-fetch on every keystroke).
+  const searchRef = useRef(search);
+  searchRef.current = search;
+
+  const fetchTenders = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await tenderApi.getAll({ title: search || undefined, status: statusFilter, page, size: 10 });
+      const { data } = await tenderApi.getAll({ title: searchRef.current || undefined, status: statusFilter, page, size: 10 });
       setTenders(data.content);
       setTotal(data.totalElements);
     } catch { /* handled by interceptor */ }
     setLoading(false);
-  };
+  }, [page, statusFilter]);
 
-  useEffect(() => { fetchTenders(); }, [page, statusFilter]);
+  useEffect(() => { fetchTenders(); }, [fetchTenders]);
 
   const columns = [
     {

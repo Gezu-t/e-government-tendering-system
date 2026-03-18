@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.concurrent.ThreadLocalRandom;
@@ -141,12 +140,21 @@ public class UserEventPublisher {
     }
 
     private void sendEvent(String key, Object event) {
-        CompletableFuture<SendResult<String, Object>> future = kafkaTemplate.send(userEventsTopic, key, event);
-        future.whenComplete((result, ex) -> {
-            if (ex != null) {
-                log.error("Failed to send event to topic {}: {}", userEventsTopic, ex.getMessage());
-            } else {
-                log.debug("Successfully sent event to topic {} with offset {}", userEventsTopic, result.getRecordMetadata().offset());
+        // Run on a separate thread so kafkaTemplate.send() — which can block up to
+        // max.block.ms waiting for broker metadata — never blocks the servlet thread.
+        CompletableFuture.runAsync(() -> {
+            try {
+                kafkaTemplate.send(userEventsTopic, key, event)
+                        .whenComplete((result, ex) -> {
+                            if (ex != null) {
+                                log.error("Failed to send event to topic {}: {}", userEventsTopic, ex.getMessage());
+                            } else {
+                                log.debug("Successfully sent event to topic {} with offset {}",
+                                        userEventsTopic, result.getRecordMetadata().offset());
+                            }
+                        });
+            } catch (Exception ex) {
+                log.error("Failed to dispatch event to topic {}: {}", userEventsTopic, ex.getMessage());
             }
         });
     }

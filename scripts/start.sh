@@ -18,17 +18,27 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
+# Load .env if present (local development convenience)
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "$PROJECT_ROOT/.env"
+  set +a
+  echo "[INFO]  Loaded environment from .env"
+fi
+
 # ============================================================
 # Configuration
 # ============================================================
 MYSQL_HOST="${DB_HOST:-localhost}"
 MYSQL_PORT="${DB_PORT:-3306}"
 MYSQL_USER="${DB_USERNAME:-root}"
-MYSQL_PASS="${DB_PASSWORD:-password}"
+MYSQL_PASS="${DB_PASSWORD:?DB_PASSWORD is required. Export it before running this script.}"
 KAFKA_HOST="${KAFKA_HOST:-localhost}"
 KAFKA_PORT="${KAFKA_PORT:-9092}"
-JWT_ISSUER_URI="${JWT_ISSUER_URI:-http://localhost:9000/auth/realms/egov-tendering}"
-JWT_JWK_SET_URI="${JWT_JWK_SET_URI:-${JWT_ISSUER_URI%/}/protocol/openid-connect/certs}"
+JWT_SECRET="${JWT_SECRET:?JWT_SECRET is required. Export it before running this script.}"
+SEALING_MASTER_KEY="${SEALING_MASTER_KEY:?SEALING_MASTER_KEY is required. Export it before running this script.}"
+KAFKA_AVAILABLE=1
 
 # Service definitions: name, port, db_name
 declare -a SERVICES=(
@@ -135,6 +145,15 @@ wait_for_mysql() {
   return 1
 }
 
+is_kafka_available() {
+  if command -v nc &>/dev/null; then
+    nc -z "$KAFKA_HOST" "$KAFKA_PORT" >/dev/null 2>&1
+    return $?
+  fi
+
+  (echo >"/dev/tcp/$KAFKA_HOST/$KAFKA_PORT") >/dev/null 2>&1
+}
+
 setup_databases() {
   log_step "Setting Up Databases"
 
@@ -200,6 +219,19 @@ build_project() {
   fi
 }
 
+build_service_jar() {
+  local name=$1
+
+  log_info "Building missing artifact for $name..."
+  if ${MVN:-mvn} -pl "$name" -am package -DskipTests -q --batch-mode 2>&1 | tail -5; then
+    log_ok "$name build successful"
+    return 0
+  fi
+
+  log_error "$name build failed"
+  return 1
+}
+
 # ============================================================
 # Start Infrastructure (MySQL, Kafka, Redis)
 # ============================================================
@@ -217,6 +249,15 @@ start_infra() {
     log_info "  MySQL:     $MYSQL_HOST:$MYSQL_PORT"
     log_info "  Kafka:     $KAFKA_HOST:$KAFKA_PORT"
     log_info "  Redis:     localhost:6379"
+  fi
+
+  if is_kafka_available; then
+    KAFKA_AVAILABLE=1
+    log_ok "Kafka is reachable at $KAFKA_HOST:$KAFKA_PORT"
+  else
+    KAFKA_AVAILABLE=0
+    log_warn "Kafka is not reachable at $KAFKA_HOST:$KAFKA_PORT"
+    log_warn "Services will start in degraded local mode with Kafka listeners disabled"
   fi
 }
 
@@ -258,8 +299,16 @@ start_service() {
   jar_file=$(find "$PROJECT_ROOT/$name/target" -name "*.jar" -not -name "*-sources*" -not -name "*-javadoc*" 2>/dev/null | head -1)
 
   if [ -z "$jar_file" ]; then
-    log_error "$name JAR not found. Run './scripts/start.sh build' first."
-    return 1
+    log_warn "$name JAR not found. Building it now..."
+    if ! build_service_jar "$name"; then
+      log_error "$name JAR not found and automatic build failed."
+      return 1
+    fi
+    jar_file=$(find "$PROJECT_ROOT/$name/target" -name "*.jar" -not -name "*-sources*" -not -name "*-javadoc*" 2>/dev/null | head -1)
+    if [ -z "$jar_file" ]; then
+      log_error "$name JAR still not found after build."
+      return 1
+    fi
   fi
 
   log_info "Starting $name on port $port..."
@@ -294,15 +343,29 @@ start_service() {
     java_opts+=("--eureka.client.service-url.defaultZone=http://localhost:8761/eureka/")
   fi
 
-  if [ "$name" != "discovery-service" ] && [ "$name" != "config-service" ]; then
-    java_opts+=(
-      "--spring.security.oauth2.resourceserver.jwt.issuer-uri=$JWT_ISSUER_URI"
-      "--spring.security.oauth2.resourceserver.jwt.jwk-set-uri=$JWT_JWK_SET_URI"
-    )
+  if [ "$name" = "user-service" ]; then
+    java_opts+=("--app.security.jwt.secret=$JWT_SECRET")
+  fi
+
+  if [ "$name" != "discovery-service" ] && [ "$name" != "config-service" ] && [ "$name" != "user-service" ]; then
+    java_opts+=("--app.security.jwt.secret=$JWT_SECRET")
+  fi
+
+  if [ "$name" = "bidding-service" ]; then
+    java_opts+=("--bidding.seal.master-key-base64=$SEALING_MASTER_KEY")
   fi
 
   if [ "$name" != "discovery-service" ] && [ "$name" != "config-service" ] && [ "$name" != "gateway-service" ] && [ "$name" != "document-service" ]; then
     java_opts+=("--spring.kafka.bootstrap-servers=$KAFKA_HOST:$KAFKA_PORT")
+    java_opts+=("--spring.kafka.admin.fail-fast=false")
+  fi
+
+  if [ "$KAFKA_AVAILABLE" -eq 0 ]; then
+    java_opts+=(
+      "--spring.kafka.listener.auto-startup=false"
+      "--spring.kafka.consumer.auto-startup=false"
+      "--management.health.kafka.enabled=false"
+    )
   fi
 
   # Start in background
@@ -517,10 +580,33 @@ print_summary() {
   echo -e "  ${GREEN}Kafka UI:${NC}           http://localhost:8090"
   echo -e "  ${GREEN}Config Server:${NC}      http://localhost:8888"
   echo ""
-  echo -e "  ${BLUE}Logs:${NC}   tail -f logs/<service-name>.log"
   echo -e "  ${BLUE}Status:${NC} ./scripts/start.sh status"
   echo -e "  ${BLUE}Stop:${NC}   ./scripts/start.sh stop"
   echo ""
+}
+
+follow_logs() {
+  local log_dir="$PROJECT_ROOT/logs"
+  mkdir -p "$log_dir"
+
+  # Collect existing log files; wait briefly for any just-started services to create theirs
+  sleep 1
+  local log_files=()
+  for f in "$log_dir"/*.log; do
+    [ -f "$f" ] && log_files+=("$f")
+  done
+
+  if [ ${#log_files[@]} -eq 0 ]; then
+    log_warn "No log files found in $log_dir"
+    return 1
+  fi
+
+  log_step "Streaming Logs (Ctrl+C to stop — services keep running)"
+  echo -e "  ${BLUE}Files:${NC} ${log_files[*]}"
+  echo ""
+
+  # tail -f with headers so each line is prefixed with the filename
+  tail -f "${log_files[@]}"
 }
 
 # ============================================================
@@ -539,6 +625,7 @@ case "${1:-all}" in
     setup_databases
     start_services
     print_summary
+    follow_logs
     ;;
   frontend)
     start_frontend
@@ -551,6 +638,7 @@ case "${1:-all}" in
     start_services
     start_frontend
     print_summary
+    follow_logs
     ;;
   stop)
     stop_all
@@ -560,6 +648,9 @@ case "${1:-all}" in
     ;;
   db-setup)
     setup_databases
+    ;;
+  logs)
+    follow_logs
     ;;
   all)
     check_prerequisites
@@ -572,9 +663,10 @@ case "${1:-all}" in
     start_services
     start_frontend
     print_summary
+    follow_logs
     ;;
   *)
-    echo "Usage: $0 {all|infra|services|frontend|build|stop|status|db-setup}"
+    echo "Usage: $0 {all|infra|services|frontend|build|stop|status|db-setup|logs}"
     exit 1
     ;;
 esac

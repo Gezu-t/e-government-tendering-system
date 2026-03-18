@@ -32,7 +32,7 @@ public class NotificationEventConsumer {
     private String applicationName;
 
     @KafkaListener(
-            topics = "${kafka.topics.notification-events}",
+            topics = "${app.kafka.topics.notification-events:${kafka.topics.notification-events:notification-events}}",
             groupId = "${spring.kafka.consumer.group-id:notification-events-consumer}",
             containerFactory = "kafkaListenerContainerFactory"
     )

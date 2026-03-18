@@ -29,13 +29,6 @@ spring:
       ribbon:
         enabled: false
 
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://localhost:9000/auth/realms/egov-tendering
-          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:9000/auth/realms/egov-tendering/protocol/openid-connect/certs}
-
   redis:
     host: localhost
     port: 6379
@@ -106,6 +99,19 @@ app:
   gateway:
     default-timeout: 10000
     connect-timeout: 2000
+    # Paths accessible without authentication (any HTTP method).
+    # Add new public endpoints here — no code change required.
+    public-paths:
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /api/auth/**
+      - /api/users/register
+    # Paths accessible without authentication for GET requests only.
+    public-get-paths:
+      - /api/tenders
+      - /api/tenders/*
+      - /api/tenders/*/clarifications/public
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:4200}
@@ -136,9 +142,3 @@ spring:
   redis:
     host: redis
     port: 6379
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: https://auth.egov-tendering.com/auth/realms/egov-tendering
-          jwk-set-uri: ${JWT_JWK_SET_URI:https://auth.egov-tendering.com/auth/realms/egov-tendering/protocol/openid-connect/certs}

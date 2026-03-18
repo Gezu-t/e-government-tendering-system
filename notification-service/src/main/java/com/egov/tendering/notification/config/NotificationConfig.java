@@ -6,51 +6,47 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
 
-import java.util.Properties;
-
+/**
+ * Notification channel configuration.
+ *
+ * Email: Spring Boot auto-configures JavaMailSender from spring.mail.* properties.
+ *        No explicit bean is needed here — define SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD
+ *        as environment variables (see application.yml).
+ *
+ * SMS / Push: dev/test use explicit mock logging beans. Other profiles receive
+ *             no-op defaults so the service can still start until real provider
+ *             integrations are added.
+ */
 @Configuration
 @Slf4j
 public class NotificationConfig {
 
-  @Bean
-  @Profile("!test")
-  public JavaMailSender mailSender() {
-    JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
-    // Configure mail properties - these should be set in application.yml
-    // and injected via @Value or ConfigurationProperties in a real application
-    mailSender.setHost("smtp.example.com");
-    mailSender.setPort(587);
-    mailSender.setUsername("notification@egov-tendering.com");
-    mailSender.setPassword("password");
+    @Bean
+    @Profile({"dev", "test"})
+    public SmsSender mockSmsSender() {
+        return (phoneNumber, message) ->
+                log.info("[MOCK SMS] to={} message={}", phoneNumber, message);
+    }
 
-    Properties props = mailSender.getJavaMailProperties();
-    props.put("mail.transport.protocol", "smtp");
-    props.put("mail.smtp.auth", "true");
-    props.put("mail.smtp.starttls.enable", "true");
-    props.put("mail.debug", "false");
+    @Bean
+    @Profile("!dev & !test")
+    public SmsSender defaultSmsSender() {
+        return (phoneNumber, message) ->
+                log.warn("SMS provider not configured. Skipping send to={}", phoneNumber);
+    }
 
-    return mailSender;
-  }
+    @Bean
+    @Profile({"dev", "test"})
+    public PushSender mockPushSender() {
+        return (userId, title, body, data) ->
+                log.info("[MOCK PUSH] userId={} title={} body={} data={}", userId, title, body, data);
+    }
 
-  @Bean
-  public SmsSender smsSender() {
-    // This is a simple mock implementation for demonstration
-    // In a real application, you would use an actual SMS gateway service
-    return (phoneNumber, message) -> {
-      log.info("Mock SMS sent to: {} with message: {}", phoneNumber, message);
-    };
-  }
-
-  @Bean
-  public PushSender pushSender() {
-    // This is a simple mock implementation for demonstration
-    // In a real application, you would use an actual push notification service
-    return (userId, title, body, data) -> {
-      log.info("Mock push notification sent to user: {} with title: {}, body: {}, data: {}",
-              userId, title, body, data);
-    };
-  }
+    @Bean
+    @Profile("!dev & !test")
+    public PushSender defaultPushSender() {
+        return (userId, title, body, data) ->
+                log.warn("Push provider not configured. Skipping send to userId={}", userId);
+    }
 }

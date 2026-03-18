@@ -7,6 +7,7 @@ import com.egov.tendering.user.dal.dto.RegistrationRequest;
 import com.egov.tendering.user.dal.dto.UserDTO;
 import com.egov.tendering.user.dal.model.OrganizationType;
 import com.egov.tendering.user.dal.model.UserRole;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +26,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 class AuthIntegrationTest {

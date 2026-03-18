@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Card,
   Form,
@@ -57,7 +57,7 @@ export default function QualificationPage() {
   const [qualified, setQualified] = useState<boolean | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
@@ -76,11 +76,11 @@ export default function QualificationPage() {
       message.error('Failed to load qualification data.');
     }
     setLoading(false);
-  };
+  }, [userId]);
 
   useEffect(() => {
     fetchData();
-  }, [userId]);
+  }, [fetchData]);
 
   const handleSubmit = async (values: QualificationFormValues) => {
     if (!orgId) {

@@ -18,15 +18,15 @@ services:
     image: mysql:8.0
     container_name: egov-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ALLOW_EMPTY_PASSWORD: "false"
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker-common/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -205,8 +205,9 @@ services:
       - DB_PORT=3306
       - DB_NAME=user_service
       - DB_USERNAME=root
-      - DB_PASSWORD=password
+      - DB_PASSWORD=${DB_PASSWORD}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=${JWT_SECRET}
     networks:
       - egov-network
 
@@ -237,7 +238,7 @@ services:
       - DB_PORT=3306
       - DB_NAME=tender_service
       - DB_USERNAME=root
-      - DB_PASSWORD=password
+      - DB_PASSWORD=${DB_PASSWORD}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     networks:
       - egov-network
@@ -269,8 +270,9 @@ services:
       - DB_PORT=3306
       - DB_NAME=bidding_service
       - DB_USERNAME=root
-      - DB_PASSWORD=password
+      - DB_PASSWORD=${DB_PASSWORD}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SEALING_MASTER_KEY=${SEALING_MASTER_KEY}
     volumes:
       - bid_uploads:/app/uploads
     networks:
@@ -303,7 +305,7 @@ services:
       - DB_PORT=3306
       - DB_NAME=contract_service
       - DB_USERNAME=root
-      - DB_PASSWORD=password
+      - DB_PASSWORD=${DB_PASSWORD}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     networks:
       - egov-network
@@ -333,7 +335,7 @@ services:
       - DB_PORT=3306
       - DB_NAME=document_service
       - DB_USERNAME=root
-      - DB_PASSWORD=password
+      - DB_PASSWORD=${DB_PASSWORD}
     volumes:
       - document_uploads:/app/uploads
     networks:
@@ -366,7 +368,7 @@ services:
       - DB_PORT=3306
       - DB_NAME=notification_service
       - DB_USERNAME=root
-      - DB_PASSWORD=password
+      - DB_PASSWORD=${DB_PASSWORD}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     networks:
       - egov-network
@@ -398,7 +400,7 @@ services:
       - DB_PORT=3306
       - DB_NAME=evaluation_service
       - DB_USERNAME=root
-      - DB_PASSWORD=password
+      - DB_PASSWORD=${DB_PASSWORD}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     networks:
       - egov-network
@@ -430,7 +432,7 @@ services:
       - DB_PORT=3306
       - DB_NAME=audit_service
       - DB_USERNAME=root
-      - DB_PASSWORD=password
+      - DB_PASSWORD=${DB_PASSWORD}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     networks:
       - egov-network

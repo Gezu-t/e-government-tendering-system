@@ -34,6 +34,7 @@ import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 @TestPropertySource(properties = {

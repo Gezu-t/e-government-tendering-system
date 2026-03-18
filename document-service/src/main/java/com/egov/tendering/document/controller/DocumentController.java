@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -41,6 +42,9 @@ public class DocumentController {
 
     private final DocumentService documentService;
     private final JwtUserIdExtractor jwtUserIdExtractor;
+
+    @Value("${app.security.jwt.claim-roles:roles}")
+    private String rolesClaimName;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload a new document")
@@ -176,7 +180,7 @@ public class DocumentController {
         if (jwt == null) {
             return false;
         }
-        Object rolesClaim = jwt.getClaims().get("roles");
+        Object rolesClaim = jwt.getClaims().get(rolesClaimName);
         if (rolesClaim instanceof java.util.Collection<?> roles) {
             return roles.stream().anyMatch(role -> "ROLE_ADMIN".equals(String.valueOf(role)));
         }

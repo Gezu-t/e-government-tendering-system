@@ -5,8 +5,8 @@ spring:
   # Database Configuration
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:user_service}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:password}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   # JPA Configuration
@@ -43,8 +43,8 @@ eureka:
 app:
   security:
     jwt:
-      secret: ${JWT_SECRET:your-256-bit-secret-for-user-service}
-      expiration: 86400000  # 24 hours
+      secret: ${JWT_SECRET}
+      expiration: ${JWT_EXPIRATION_MS:86400000}
 
   validation:
     email-regex: ^[A-Za-z0-9+_.-]+@(.+)$

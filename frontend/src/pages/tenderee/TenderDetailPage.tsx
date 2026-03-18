@@ -521,7 +521,6 @@ export default function TenderDetailPage() {
         columns={bidColumns}
         dataSource={bids}
         rowKey="id"
-       
         pagination={{ pageSize: 10 }}
       />
     );

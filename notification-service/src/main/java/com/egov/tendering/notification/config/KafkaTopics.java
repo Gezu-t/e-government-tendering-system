@@ -9,7 +9,8 @@ import org.springframework.context.annotation.Configuration;
 @Data
 public class KafkaTopics {
     // Notification events
-    public static final String NOTIFICATION_SENT = "notification-sent";
+    private String notificationSent = "notification-sent";
+    private String notificationEvents = "notification-events";
 
     // Tender events
     private String tenderCreated = "tender-created";

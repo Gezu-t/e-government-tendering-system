@@ -12,11 +12,12 @@ import com.egov.tendering.bidding.event.BidEventPublisher;
 import com.egov.tendering.bidding.service.TenderWorkflowGuard;
 import com.egov.tendering.dto.TenderDTO;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.mock.bean.MockBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -52,6 +53,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
+@Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "eureka.client.enabled=false",
@@ -69,7 +71,8 @@ import static org.mockito.Mockito.when;
                 "app.kafka.topics.tender-evaluation-completed=tender-evaluation-completed-test",
                 "app.kafka.topics.contract-events=contract-events-test",
                 "app.file-storage.upload-dir=/tmp/test-uploads",
-                "app.feign.tender-service=tender-service"
+                "app.feign.tender-service=tender-service",
+                "bidding.seal.master-key-base64=YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY="
         })
 @Testcontainers
 class BidIntegrationTest {

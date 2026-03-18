@@ -6,6 +6,7 @@ import com.egov.tendering.bidding.dal.dto.PageDTO;
 import com.egov.tendering.bidding.dal.model.BidStatus;
 import com.egov.tendering.bidding.service.BidService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,6 +32,9 @@ public class BidController {
 
   private final BidService bidService;
   private final JwtUserIdExtractor jwtUserIdExtractor;
+
+  @Value("${app.security.jwt.claim-roles:roles}")
+  private String rolesClaimName;
 
   @PostMapping
   @PreAuthorize("hasRole('TENDERER')")
@@ -158,7 +162,7 @@ public class BidController {
   }
 
   private boolean hasRole(Jwt jwt, String role) {
-    Object rolesClaim = jwt.getClaim("roles");
+    Object rolesClaim = jwt.getClaim(rolesClaimName);
     if (rolesClaim instanceof Iterable<?> iterable) {
       for (Object item : iterable) {
         if (role.equals(String.valueOf(item))) {

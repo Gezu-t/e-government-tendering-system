@@ -1,5 +1,6 @@
 package com.egov.tendering.bidding.service.impl;
 
+import com.egov.tendering.bidding.config.BidSealingProperties;
 import com.egov.tendering.bidding.dal.dto.BidSealDTO;
 import com.egov.tendering.bidding.dal.model.*;
 import com.egov.tendering.bidding.dal.repository.BidRepository;
@@ -13,12 +14,14 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import javax.crypto.KeyGenerator;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,32 +30,45 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for {@link BidSealingServiceImpl}.
+ *
+ * <p>Uses real cryptographic operations (envelope encryption) and mocked repositories.
+ * A fresh 256-bit master key is generated for each test run to keep tests hermetic.
+ */
 @ExtendWith(MockitoExtension.class)
 class BidSealingServiceImplTest {
 
-    @Mock
-    private BidSealRepository bidSealRepository;
+    @Mock private BidSealRepository bidSealRepository;
+    @Mock private BidRepository bidRepository;
+    @Mock private TenderWorkflowGuard tenderWorkflowGuard;
 
-    @Mock
-    private BidRepository bidRepository;
-
-    @Mock
-    private TenderWorkflowGuard tenderWorkflowGuard;
-
-    @Mock
+    private BidSealingServiceImpl bidSealingService;
     private ObjectMapper objectMapper;
 
-    @InjectMocks
-    private BidSealingServiceImpl bidSealingService;
+    private static final Long BID_ID    = 1L;
+    private static final Long TENDER_ID = 100L;
+    private static final Long USER_ID   = 50L;
 
     private Bid sampleBid;
-    private BidSeal sampleSeal;
-    private static final Long BID_ID = 1L;
-    private static final Long TENDER_ID = 100L;
-    private static final Long USER_ID = 50L;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        // Generate a fresh test master key for each test
+        KeyGenerator kg = KeyGenerator.getInstance("AES");
+        kg.init(256);
+        String masterKeyB64 = Base64.getEncoder().encodeToString(kg.generateKey().getEncoded());
+
+        BidSealingProperties props = new BidSealingProperties();
+        props.setMasterKeyBase64(masterKeyB64);
+        // All other properties use their defaults (AES/GCM/NoPadding, SHA-256, etc.)
+
+        objectMapper = new ObjectMapper();
+        objectMapper.findAndRegisterModules();
+
+        bidSealingService = new BidSealingServiceImpl(
+                bidSealRepository, bidRepository, tenderWorkflowGuard, objectMapper, props);
+
         sampleBid = Bid.builder()
                 .id(BID_ID)
                 .tenderId(TENDER_ID)
@@ -63,62 +79,74 @@ class BidSealingServiceImplTest {
                 .createdAt(LocalDateTime.now().minusDays(1))
                 .updatedAt(LocalDateTime.now().minusHours(1))
                 .build();
-
-        sampleSeal = BidSeal.builder()
-                .id(10L)
-                .bidId(BID_ID)
-                .tenderId(TENDER_ID)
-                .contentHash("abc123hash")
-                .encryptedContent("encryptedData")
-                .encryptionAlgorithm("AES/GCM/NoPadding")
-                .sealKeyReference("keyRef")
-                .status(SealStatus.SEALED)
-                .sealedAt(LocalDateTime.now().minusHours(1))
-                .sealedBy(USER_ID)
-                .scheduledUnsealTime(LocalDateTime.now().minusMinutes(30))
-                .integrityVerified(true)
-                .build();
     }
+
+    // -----------------------------------------------------------------------
+    // Helper: perform a real seal and capture the saved BidSeal
+    // -----------------------------------------------------------------------
+
+    private BidSeal performSeal(LocalDateTime unsealTime) throws Exception {
+        when(bidSealRepository.existsByBidId(BID_ID)).thenReturn(false);
+        when(bidRepository.findById(BID_ID)).thenReturn(Optional.of(sampleBid));
+        when(tenderWorkflowGuard.getSubmissionDeadline(TENDER_ID)).thenReturn(unsealTime);
+        when(bidSealRepository.save(any(BidSeal.class))).thenAnswer(inv -> {
+            BidSeal s = inv.getArgument(0);
+            s.setId(10L);
+            return s;
+        });
+
+        bidSealingService.sealBid(BID_ID, USER_ID);
+
+        ArgumentCaptor<BidSeal> captor = ArgumentCaptor.forClass(BidSeal.class);
+        verify(bidSealRepository).save(captor.capture());
+        // Reset mocks so subsequent calls in the same test are fresh
+        reset(bidSealRepository, bidRepository, tenderWorkflowGuard);
+        return captor.getValue();
+    }
+
+    // -----------------------------------------------------------------------
+    // sealBid
+    // -----------------------------------------------------------------------
 
     @Nested
     @DisplayName("sealBid")
     class SealBidTests {
 
         @Test
-        @DisplayName("should seal a submitted bid successfully")
+        @DisplayName("seals a submitted bid and stores wrapped key beside ciphertext")
         void sealBid_success() throws Exception {
             when(bidSealRepository.existsByBidId(BID_ID)).thenReturn(false);
             when(bidRepository.findById(BID_ID)).thenReturn(Optional.of(sampleBid));
-            when(objectMapper.writeValueAsString(any(Bid.class))).thenReturn("{\"id\":1}");
             when(tenderWorkflowGuard.getSubmissionDeadline(TENDER_ID))
                     .thenReturn(LocalDateTime.now().plusDays(1));
-            when(bidSealRepository.save(any(BidSeal.class))).thenAnswer(invocation -> {
-                BidSeal saved = invocation.getArgument(0);
-                saved.setId(10L);
-                return saved;
+            when(bidSealRepository.save(any(BidSeal.class))).thenAnswer(inv -> {
+                BidSeal s = inv.getArgument(0);
+                s.setId(10L);
+                return s;
             });
 
             BidSealDTO result = bidSealingService.sealBid(BID_ID, USER_ID);
 
-            assertThat(result).isNotNull();
             assertThat(result.getBidId()).isEqualTo(BID_ID);
-            assertThat(result.getTenderId()).isEqualTo(TENDER_ID);
             assertThat(result.getStatus()).isEqualTo(SealStatus.SEALED);
-            assertThat(result.getSealedBy()).isEqualTo(USER_ID);
             assertThat(result.getContentHash()).isNotBlank();
             assertThat(result.getEncryptionAlgorithm()).isEqualTo("AES/GCM/NoPadding");
-            assertThat(result.getIntegrityVerified()).isTrue();
 
             ArgumentCaptor<BidSeal> captor = ArgumentCaptor.forClass(BidSeal.class);
             verify(bidSealRepository).save(captor.capture());
-            BidSeal savedSeal = captor.getValue();
-            assertThat(savedSeal.getContentHash()).isNotBlank();
-            assertThat(savedSeal.getEncryptedContent()).isNotBlank();
+            BidSeal saved = captor.getValue();
+
+            assertThat(saved.getEncryptedContent()).isNotBlank();
+            assertThat(saved.getSealKeyReference()).isNotBlank();
+            // The wrapped key must NOT be the raw CEK bytes — it must be longer
+            // (IV + ciphertext of the wrapped key) and not equal to the CEK length
+            byte[] wrappedBytes = Base64.getDecoder().decode(saved.getSealKeyReference());
+            assertThat(wrappedBytes.length).isGreaterThan(32); // 12 IV + 32 key + 16 GCM tag = 60
         }
 
         @Test
-        @DisplayName("should throw when bid is already sealed")
-        void sealBid_alreadySealed_throwsIllegalState() {
+        @DisplayName("throws when bid is already sealed")
+        void sealBid_alreadySealed() {
             when(bidSealRepository.existsByBidId(BID_ID)).thenReturn(true);
 
             assertThatThrownBy(() -> bidSealingService.sealBid(BID_ID, USER_ID))
@@ -130,8 +158,8 @@ class BidSealingServiceImplTest {
         }
 
         @Test
-        @DisplayName("should throw when bid is not in SUBMITTED status")
-        void sealBid_notSubmitted_throwsIllegalState() {
+        @DisplayName("throws when bid is not in SUBMITTED status")
+        void sealBid_notSubmitted() {
             sampleBid.setStatus(BidStatus.DRAFT);
             when(bidSealRepository.existsByBidId(BID_ID)).thenReturn(false);
             when(bidRepository.findById(BID_ID)).thenReturn(Optional.of(sampleBid));
@@ -144,8 +172,8 @@ class BidSealingServiceImplTest {
         }
 
         @Test
-        @DisplayName("should throw when bid is not found")
-        void sealBid_bidNotFound_throwsEntityNotFound() {
+        @DisplayName("throws when bid is not found")
+        void sealBid_bidNotFound() {
             when(bidSealRepository.existsByBidId(BID_ID)).thenReturn(false);
             when(bidRepository.findById(BID_ID)).thenReturn(Optional.empty());
 
@@ -155,34 +183,70 @@ class BidSealingServiceImplTest {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // unsealBid
+    // -----------------------------------------------------------------------
+
     @Nested
     @DisplayName("unsealBid")
     class UnsealBidTests {
 
         @Test
-        @DisplayName("should unseal a sealed bid after deadline")
+        @DisplayName("unseals a sealed bid after deadline with verified integrity")
         void unsealBid_success() throws Exception {
-            // Seal has scheduledUnsealTime in the past
-            sampleSeal.setScheduledUnsealTime(LocalDateTime.now().minusMinutes(30));
-            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(sampleSeal));
-            when(bidRepository.findById(BID_ID)).thenReturn(Optional.of(sampleBid));
-            when(objectMapper.writeValueAsString(any(Bid.class))).thenReturn("{\"id\":1}");
+            BidSeal seal = performSeal(LocalDateTime.now().minusMinutes(30));
+            seal.setStatus(SealStatus.SEALED);
+
+            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(seal));
             when(bidSealRepository.save(any(BidSeal.class))).thenAnswer(inv -> inv.getArgument(0));
 
             BidSealDTO result = bidSealingService.unsealBid(BID_ID, USER_ID);
 
-            assertThat(result).isNotNull();
+            assertThat(result.getStatus()).isEqualTo(SealStatus.UNSEALED);
+            assertThat(result.getIntegrityVerified()).isTrue();
             assertThat(result.getUnsealedBy()).isEqualTo(USER_ID);
             assertThat(result.getUnsealedAt()).isNotNull();
-            // Status is either UNSEALED or TAMPER_DETECTED depending on hash match
-            assertThat(result.getStatus()).isIn(SealStatus.UNSEALED, SealStatus.TAMPER_DETECTED);
-
-            verify(bidSealRepository).save(any(BidSeal.class));
         }
 
         @Test
-        @DisplayName("should throw when no seal found for bid")
-        void unsealBid_noSealFound_throwsEntityNotFound() {
+        @DisplayName("detects tampered encrypted content and sets TAMPER_DETECTED")
+        void unsealBid_tamperedContent_tamperDetected() throws Exception {
+            BidSeal seal = performSeal(LocalDateTime.now().minusMinutes(30));
+            seal.setStatus(SealStatus.SEALED);
+            // Corrupt the encrypted content — integrity check must fail
+            seal.setEncryptedContent(Base64.getEncoder().encodeToString("corrupted-garbage".getBytes()));
+
+            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(seal));
+            when(bidSealRepository.save(any(BidSeal.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            BidSealDTO result = bidSealingService.unsealBid(BID_ID, USER_ID);
+
+            assertThat(result.getStatus()).isEqualTo(SealStatus.TAMPER_DETECTED);
+            assertThat(result.getIntegrityVerified()).isFalse();
+        }
+
+        @Test
+        @DisplayName("mutating Bid ORM fields after sealing does NOT cause false TAMPER_DETECTED")
+        void unsealBid_ormFieldChangedAfterSeal_integrityStillValid() throws Exception {
+            BidSeal seal = performSeal(LocalDateTime.now().minusMinutes(30));
+            seal.setStatus(SealStatus.SEALED);
+
+            // Simulate ORM touching updatedAt after sealing — this must not affect integrity
+            sampleBid.setUpdatedAt(LocalDateTime.now());
+
+            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(seal));
+            when(bidSealRepository.save(any(BidSeal.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            BidSealDTO result = bidSealingService.unsealBid(BID_ID, USER_ID);
+
+            // Integrity is based on the sealed artifact, not the live entity — must pass
+            assertThat(result.getStatus()).isEqualTo(SealStatus.UNSEALED);
+            assertThat(result.getIntegrityVerified()).isTrue();
+        }
+
+        @Test
+        @DisplayName("throws when no seal found for bid")
+        void unsealBid_noSealFound() {
             when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> bidSealingService.unsealBid(BID_ID, USER_ID))
@@ -191,10 +255,13 @@ class BidSealingServiceImplTest {
         }
 
         @Test
-        @DisplayName("should throw when bid is not in SEALED status")
-        void unsealBid_notSealed_throwsIllegalState() {
-            sampleSeal.setStatus(SealStatus.UNSEALED);
-            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(sampleSeal));
+        @DisplayName("throws when bid is not in SEALED status")
+        void unsealBid_notSealed() {
+            BidSeal seal = BidSeal.builder()
+                    .id(10L).bidId(BID_ID).status(SealStatus.UNSEALED)
+                    .scheduledUnsealTime(LocalDateTime.now().minusMinutes(30))
+                    .build();
+            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(seal));
 
             assertThatThrownBy(() -> bidSealingService.unsealBid(BID_ID, USER_ID))
                     .isInstanceOf(IllegalStateException.class)
@@ -204,11 +271,12 @@ class BidSealingServiceImplTest {
         }
 
         @Test
-        @DisplayName("should throw when trying to unseal before scheduled time")
-        void unsealBid_beforeDeadline_throwsIllegalState() {
-            sampleSeal.setStatus(SealStatus.SEALED);
-            sampleSeal.setScheduledUnsealTime(LocalDateTime.now().plusDays(1));
-            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(sampleSeal));
+        @DisplayName("throws when trying to unseal before scheduled time (deadline enforcement)")
+        void unsealBid_beforeDeadline() throws Exception {
+            BidSeal seal = performSeal(LocalDateTime.now().plusDays(1));
+            seal.setStatus(SealStatus.SEALED);
+
+            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(seal));
 
             assertThatThrownBy(() -> bidSealingService.unsealBid(BID_ID, USER_ID))
                     .isInstanceOf(IllegalStateException.class)
@@ -218,46 +286,59 @@ class BidSealingServiceImplTest {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // verifyBidIntegrity
+    // -----------------------------------------------------------------------
+
     @Nested
     @DisplayName("verifyBidIntegrity")
     class VerifyBidIntegrityTests {
 
         @Test
-        @DisplayName("should return true when content hash matches")
-        void verifyBidIntegrity_hashMatches_returnsTrue() throws Exception {
-            String bidJson = "{\"id\":1,\"tenderId\":100}";
-            // Compute expected hash the same way the service does
-            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(bidJson.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            String expectedHash = java.util.HexFormat.of().formatHex(hashBytes);
+        @DisplayName("returns true for an intact sealed bid")
+        void verifyBidIntegrity_intact_returnsTrue() throws Exception {
+            BidSeal seal = performSeal(LocalDateTime.now().plusDays(1));
 
-            sampleSeal.setContentHash(expectedHash);
+            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(seal));
 
-            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(sampleSeal));
-            when(bidRepository.findById(BID_ID)).thenReturn(Optional.of(sampleBid));
-            when(objectMapper.writeValueAsString(sampleBid)).thenReturn(bidJson);
-
-            boolean result = bidSealingService.verifyBidIntegrity(BID_ID);
-
-            assertThat(result).isTrue();
+            assertThat(bidSealingService.verifyBidIntegrity(BID_ID)).isTrue();
         }
 
         @Test
-        @DisplayName("should return false when content hash does not match")
-        void verifyBidIntegrity_hashMismatch_returnsFalse() throws Exception {
-            sampleSeal.setContentHash("stale-hash-that-wont-match");
+        @DisplayName("returns false when encrypted content is corrupted")
+        void verifyBidIntegrity_corruptedContent_returnsFalse() throws Exception {
+            BidSeal seal = performSeal(LocalDateTime.now().plusDays(1));
+            seal.setEncryptedContent(Base64.getEncoder().encodeToString("corrupted".getBytes()));
 
-            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(sampleSeal));
-            when(bidRepository.findById(BID_ID)).thenReturn(Optional.of(sampleBid));
-            when(objectMapper.writeValueAsString(sampleBid)).thenReturn("{\"id\":1}");
+            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(seal));
 
-            boolean result = bidSealingService.verifyBidIntegrity(BID_ID);
-
-            assertThat(result).isFalse();
+            assertThat(bidSealingService.verifyBidIntegrity(BID_ID)).isFalse();
         }
 
         @Test
-        @DisplayName("should throw when no seal exists for bid")
+        @DisplayName("returns false when the stored hash is altered")
+        void verifyBidIntegrity_alteredHash_returnsFalse() throws Exception {
+            BidSeal seal = performSeal(LocalDateTime.now().plusDays(1));
+            seal.setContentHash("000000000000000000000000000000000000000000000000000000000000dead");
+
+            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(seal));
+
+            assertThat(bidSealingService.verifyBidIntegrity(BID_ID)).isFalse();
+        }
+
+        @Test
+        @DisplayName("returns false when the wrapped key is corrupted")
+        void verifyBidIntegrity_corruptedKey_returnsFalse() throws Exception {
+            BidSeal seal = performSeal(LocalDateTime.now().plusDays(1));
+            seal.setSealKeyReference(Base64.getEncoder().encodeToString("not-a-valid-wrapped-key".getBytes()));
+
+            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(seal));
+
+            assertThat(bidSealingService.verifyBidIntegrity(BID_ID)).isFalse();
+        }
+
+        @Test
+        @DisplayName("throws when no seal exists for bid")
         void verifyBidIntegrity_noSeal_throwsEntityNotFound() {
             when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.empty());
 
@@ -265,16 +346,95 @@ class BidSealingServiceImplTest {
                     .isInstanceOf(EntityNotFoundException.class)
                     .hasMessageContaining("No seal found for bid");
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // processScheduledUnseals
+    // -----------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("processScheduledUnseals")
+    class ScheduledUnsealTests {
 
         @Test
-        @DisplayName("should return false when bid not found during verification")
-        void verifyBidIntegrity_bidNotFound_returnsFalse() {
-            when(bidSealRepository.findByBidId(BID_ID)).thenReturn(Optional.of(sampleSeal));
-            when(bidRepository.findById(BID_ID)).thenReturn(Optional.empty());
+        @DisplayName("auto-unseals bids whose scheduled time has passed")
+        void processScheduledUnseals_unsealsReadyBids() throws Exception {
+            BidSeal seal = performSeal(LocalDateTime.now().minusMinutes(5));
+            seal.setStatus(SealStatus.SEALED);
 
-            boolean result = bidSealingService.verifyBidIntegrity(BID_ID);
+            when(bidSealRepository.findSealedBidsReadyForOpening(eq(SealStatus.SEALED), any()))
+                    .thenReturn(List.of(seal));
+            when(bidSealRepository.save(any(BidSeal.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            assertThat(result).isFalse();
+            bidSealingService.processScheduledUnseals();
+
+            ArgumentCaptor<BidSeal> captor = ArgumentCaptor.forClass(BidSeal.class);
+            verify(bidSealRepository).save(captor.capture());
+            assertThat(captor.getValue().getStatus()).isEqualTo(SealStatus.UNSEALED);
+            assertThat(captor.getValue().getIntegrityVerified()).isTrue();
+        }
+
+        @Test
+        @DisplayName("sets TAMPER_DETECTED for a corrupted bid during scheduled unseal")
+        void processScheduledUnseals_corruptedBid_tamperDetected() throws Exception {
+            BidSeal seal = performSeal(LocalDateTime.now().minusMinutes(5));
+            seal.setStatus(SealStatus.SEALED);
+            seal.setEncryptedContent(Base64.getEncoder().encodeToString("corrupted".getBytes()));
+
+            when(bidSealRepository.findSealedBidsReadyForOpening(eq(SealStatus.SEALED), any()))
+                    .thenReturn(List.of(seal));
+            when(bidSealRepository.save(any(BidSeal.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            bidSealingService.processScheduledUnseals();
+
+            ArgumentCaptor<BidSeal> captor = ArgumentCaptor.forClass(BidSeal.class);
+            verify(bidSealRepository).save(captor.capture());
+            assertThat(captor.getValue().getStatus()).isEqualTo(SealStatus.TAMPER_DETECTED);
+        }
+
+        @Test
+        @DisplayName("does nothing when no bids are ready for unsealing")
+        void processScheduledUnseals_noBids_noSaves() {
+            when(bidSealRepository.findSealedBidsReadyForOpening(any(), any()))
+                    .thenReturn(List.of());
+
+            bidSealingService.processScheduledUnseals();
+
+            verify(bidSealRepository, never()).save(any());
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Constructor validation
+    // -----------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("startup validation")
+    class StartupValidationTests {
+
+        @Test
+        @DisplayName("throws on null master key")
+        void constructor_nullMasterKey_throws() {
+            BidSealingProperties props = new BidSealingProperties();
+            props.setMasterKeyBase64(null);
+
+            assertThatThrownBy(() -> new BidSealingServiceImpl(
+                    bidSealRepository, bidRepository, tenderWorkflowGuard, objectMapper, props))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("master key");
+        }
+
+        @Test
+        @DisplayName("throws when master key is not 256 bits")
+        void constructor_wrongKeyLength_throws() {
+            // 16-byte (128-bit) key — invalid, must be 32 bytes
+            BidSealingProperties props = new BidSealingProperties();
+            props.setMasterKeyBase64(Base64.getEncoder().encodeToString(new byte[16]));
+
+            assertThatThrownBy(() -> new BidSealingServiceImpl(
+                    bidSealRepository, bidRepository, tenderWorkflowGuard, objectMapper, props))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("256 bits");
         }
     }
 }

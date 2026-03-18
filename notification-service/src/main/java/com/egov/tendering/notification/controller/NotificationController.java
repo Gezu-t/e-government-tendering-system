@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -40,6 +41,9 @@ public class NotificationController {
 
   private final NotificationService notificationService;
   private final JwtUserIdExtractor jwtUserIdExtractor;
+
+  @Value("${app.security.jwt.claim-roles:roles}")
+  private String rolesClaimName;
 
   @PostMapping
   @Operation(summary = "Send a new notification")
@@ -130,7 +134,7 @@ public class NotificationController {
     if (jwt == null) {
       return false;
     }
-    Object rolesClaim = jwt.getClaim("roles");
+    Object rolesClaim = jwt.getClaim(rolesClaimName);
     if (rolesClaim instanceof Iterable<?> iterable) {
       for (Object role : iterable) {
         if ("ROLE_ADMIN".equals(String.valueOf(role))) {

@@ -33,6 +33,7 @@ public class NotificationService {
     private final PushNotificationService pushNotificationService;
     private final KafkaTemplate<String, GenericNotificationEvent> kafkaTemplate;
     private final NotificationEventPublisher eventPublisher;
+    private final KafkaTopics kafkaTopics;
 
     @KafkaListener(topics = "${kafka.topics.tender-created}")
     public void handleTenderCreated(GenericNotificationEvent event) {
@@ -111,7 +112,7 @@ public class NotificationService {
         deliverNotification(notification);
 
         GenericNotificationEvent event = createGenericNotificationEvent(notification);
-        kafkaTemplate.send(KafkaTopics.NOTIFICATION_SENT, event);
+        kafkaTemplate.send(kafkaTopics.getNotificationSent(), event);
 
         return new NotificationResponse(
                 notification.getId(),
