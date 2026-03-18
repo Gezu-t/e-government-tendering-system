@@ -51,6 +51,6 @@ management:
         include: health, info, prometheus, gateway
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
     gateway:
       enabled: true

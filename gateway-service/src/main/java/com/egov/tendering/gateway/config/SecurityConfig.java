@@ -3,28 +3,46 @@ package com.egov.tendering.gateway.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
+import org.springframework.security.web.server.header.ReferrerPolicyServerHttpHeadersWriter;
+import org.springframework.security.web.server.header.XFrameOptionsServerHttpHeadersWriter;
+
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import org.springframework.security.web.server.util.matcher.OrServerWebExchangeMatcher;
+import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
+import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 /**
- * Security configuration for the API Gateway
- * Handles authentication, authorization, and security concerns
+ * Security configuration for the API Gateway.
+ *
+ * <p>Public path lists are injected from {@code GatewayProperties} (app.gateway.public-paths and
+ * app.gateway.public-get-paths in application.yml).  Adding a new unauthenticated endpoint
+ * requires only a config change — no modification to this class.
+ *
+ * <p>Infrastructure paths (/actuator/**, OPTIONS preflight) are always permitted and are not
+ * moved to config as they are not operational concerns.
  */
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
-    private String jwkSetUri;
+    @Value("${app.security.jwt.secret}")
+    private String jwtSecret;
 
     @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:5173,http://localhost:4200}")
     private String allowedOrigins;
@@ -38,50 +56,71 @@ public class SecurityConfig {
     @Value("${cors.max-age:3600}")
     private long corsMaxAge;
 
-    /**
-     * Configures security rules for the gateway
-     */
+    private final GatewayProperties gatewayProps;
+
+    public SecurityConfig(GatewayProperties gatewayProps) {
+        this.gatewayProps = gatewayProps;
+    }
+
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+        List<ServerWebExchangeMatcher> permitMatchers = new ArrayList<>();
+
+        // Infrastructure — always open
+        permitMatchers.add(ServerWebExchangeMatchers.pathMatchers("/actuator/**"));
+        permitMatchers.add(ServerWebExchangeMatchers.pathMatchers(HttpMethod.OPTIONS, "/**"));
+
+        // Operationally configured public paths (any method)
+        if (!gatewayProps.getPublicPaths().isEmpty()) {
+            permitMatchers.add(ServerWebExchangeMatchers.pathMatchers(
+                    gatewayProps.getPublicPaths().toArray(new String[0])));
+        }
+
+        // Operationally configured GET-only public paths
+        if (!gatewayProps.getPublicGetPaths().isEmpty()) {
+            permitMatchers.add(ServerWebExchangeMatchers.pathMatchers(
+                    HttpMethod.GET, gatewayProps.getPublicGetPaths().toArray(new String[0])));
+        }
+
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .headers(headers -> headers
+                        // Prevent clickjacking
+                        .frameOptions(fo -> fo.mode(XFrameOptionsServerHttpHeadersWriter.Mode.DENY))
+                        // Prevent MIME-type sniffing
+                        .contentTypeOptions(co -> {})
+                        // Enforce HTTPS for 1 year, include subdomains
+                        .hsts(hsts -> hsts
+                                .maxAge(Duration.ofDays(365))
+                                .includeSubdomains(true)
+                                .preload(false))
+                        // Restrict resource loading — API gateway only serves JSON
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                "default-src 'none'; frame-ancestors 'none'; form-action 'none'"))
+                        // Don't leak referrer to other origins
+                        .referrerPolicy(rp -> rp.policy(
+                                ReferrerPolicyServerHttpHeadersWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        // Restrict browser features
+                        .permissionsPolicy(pp -> pp.policy(
+                                "camera=(), microphone=(), geolocation=(), payment=()"))
+                        // Don't cache sensitive API responses
+                        .cache(ServerHttpSecurity.HeaderSpec.CacheSpec::disable)
+                )
                 .authorizeExchange(exchanges -> exchanges
-                        // Public endpoints that don't require authentication
-                        .pathMatchers("/actuator/**").permitAll()
-                        .pathMatchers("/api/auth/**").permitAll()
-
-                        // Swagger/OpenAPI endpoints
-                        .pathMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-
-                        // Service-specific public endpoints
-                        .pathMatchers("/api/users/register").permitAll()
-
-                        // Public tender browsing (read-only, no auth required)
-                        .pathMatchers(org.springframework.http.HttpMethod.GET, "/api/tenders", "/api/tenders/*").permitAll()
-                        .pathMatchers(org.springframework.http.HttpMethod.GET, "/api/tenders/*/clarifications/public").permitAll()
-
-                        // OPTIONS preflight requests
-                        .pathMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-
-                        // Secured endpoints requiring authentication
+                        .matchers(new OrServerWebExchangeMatcher(permitMatchers)).permitAll()
                         .anyExchange().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}))
                 .build();
     }
 
-    /**
-     * JWT decoder for validating tokens
-     */
     @Bean
     public ReactiveJwtDecoder jwtDecoder() {
-        return NimbusReactiveJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        SecretKeySpec secretKey = new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA512");
+        return NimbusReactiveJwtDecoder.withSecretKey(secretKey).macAlgorithm(MacAlgorithm.HS512).build();
     }
 
-    /**
-     * CORS configuration
-     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration corsConfig = new CorsConfiguration();

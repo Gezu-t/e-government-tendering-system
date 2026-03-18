@@ -41,16 +41,16 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <!-- Spring Boot and Cloud -->
-        <spring-boot.version>3.2.2</spring-boot.version>
-        <spring-cloud.version>2023.0.0</spring-cloud.version>
+        <spring-boot.version>3.2.12</spring-boot.version>
+        <spring-cloud.version>2023.0.4</spring-cloud.version>
 
         <!-- Kafka -->
         <kafka.version>3.5.1</kafka.version>
         <spring-kafka.version>3.1.0</spring-kafka.version>
 
         <!-- Database -->
-        <mysql.version>8.0.33</mysql.version>
-        <flyway.version>9.19.4</flyway.version>
+        <mysql.version>8.4.0</mysql.version>
+        <flyway.version>9.22.3</flyway.version>
 
         <!-- Security -->
         <jjwt.version>0.11.5</jjwt.version>
@@ -70,6 +70,7 @@
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
         <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
+        <owasp-dependency-check.version>9.2.0</owasp-dependency-check.version>
         <openapi-generator-maven-plugin.version>7.0.1</openapi-generator-maven-plugin.version>
         <twilio.version>9.0.0</twilio.version>
 
@@ -310,6 +311,25 @@
         </plugins>
         <pluginManagement>
             <plugins>
+                <!--
+                  OWASP Dependency-Check: scans all dependencies for known CVEs.
+                  Run manually: mvn dependency-check:check
+                  Report output: target/dependency-check-report.html
+                  Fails the build if any dependency has a CVSS score >= 9 (critical).
+                  To suppress a false positive, add an entry to dependency-check-suppressions.xml.
+                -->
+                <plugin>
+                    <groupId>org.owasp</groupId>
+                    <artifactId>dependency-check-maven</artifactId>
+                    <version>${owasp-dependency-check.version}</version>
+                    <configuration>
+                        <failBuildOnCVSS>9</failBuildOnCVSS>
+                        <suppressionFile>${project.basedir}/dependency-check-suppressions.xml</suppressionFile>
+                        <formats>HTML,JSON</formats>
+                        <skipProvidedScope>true</skipProvidedScope>
+                        <skipTestScope>true</skipTestScope>
+                    </configuration>
+                </plugin>
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>

@@ -75,7 +75,7 @@ management:
           - prometheus
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
 
 # Custom Application Properties
 app:

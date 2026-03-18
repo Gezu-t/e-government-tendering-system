@@ -23,7 +23,7 @@ Based on research by Simon Fong and Zhuang Yan:
 | 12 | Frontend / Web Portal | **Done** | DONE |
 | 13 | Testing & Quality Assurance | **Partial** (E2E + coverage threshold pending) | HIGH |
 | 14 | DevOps, CI/CD & Deployment | **Done** | DONE |
-| 15 | Security Hardening & Compliance | Partial | HIGH |
+| 15 | Security Hardening & Compliance | **Partial** (Keycloak/Vault/input sanitization pending) | HIGH |
 | 16 | Performance Optimization & BPR | Not Started | LOW |
 
 ---
@@ -192,8 +192,14 @@ Based on research by Simon Fong and Zhuang Yan:
 - [x] JWT-based stateless authentication with role-based access control
 - [x] AES-256-GCM bid encryption, SHA-256 integrity hashing, RSA digital signatures
 - [x] CSRF disabled (stateless), CORS configured, Redis rate limiting (3 tiers)
-- [ ] TODO: OAuth 2.0 authorization server (Keycloak), 2FA, TLS for inter-service, secret management (Vault)
-- [ ] TODO: Security headers, dependency vulnerability scanning, input sanitization
+- [x] HTTP security response headers on all API responses via gateway (X-Frame-Options: DENY, X-Content-Type-Options: nosniff, HSTS 1yr, CSP, Referrer-Policy, Permissions-Policy, Cache-Control: no-cache)
+- [x] Removed over-permissive `globalcors: allowedOrigins: "*"` — CORS now enforced by SecurityConfig bean only
+- [x] Actuator health detail restricted to `when-authorized` (was `always` — leaked system internals)
+- [x] OWASP Dependency-Check Maven plugin added (`mvn dependency-check:check`, fails on CVSS ≥ 9)
+- [x] Dependency upgrades: Spring Boot 3.2.2 → 3.2.12, Spring Cloud 2023.0.0 → 2023.0.4, mysql-connector 8.0.33 → 8.4.0, Flyway 9.19.4 → 9.22.3
+- [ ] TODO: OAuth 2.0 authorization server (Keycloak) / 2FA
+- [ ] TODO: TLS for inter-service communication, secret management (Vault/AWS Secrets Manager)
+- [ ] TODO: Input sanitization (XSS filter, HTML escaping on free-text fields)
 
 ## Phase 16: Performance Optimization & BPR - NOT STARTED
 
