@@ -10,7 +10,6 @@ import {
   Tag,
   Typography,
   Spin,
-  message,
   Row,
   Col,
   Alert,
@@ -18,6 +17,7 @@ import {
 } from 'antd';
 import { SafetyCertificateOutlined, PlusOutlined } from '@ant-design/icons';
 import { userApi } from '../../api/services';
+import { useMessage } from '../../hooks/useMessage';
 import { useAuthStore } from '../../store/authStore';
 import type { VendorQualification, QualificationStatus, User } from '../../types';
 import dayjs from 'dayjs';
@@ -49,6 +49,7 @@ interface QualificationFormValues {
 export default function QualificationPage() {
   const [form] = Form.useForm<QualificationFormValues>();
   const { userId } = useAuthStore();
+  const message = useMessage();
 
   const [qualifications, setQualifications] = useState<VendorQualification[]>([]);
   const [loading, setLoading] = useState(true);

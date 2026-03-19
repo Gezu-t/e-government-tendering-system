@@ -12,7 +12,6 @@ import {
   Form,
   Input,
   DatePicker,
-  message,
   Spin,
   List,
   Empty,
@@ -26,6 +25,7 @@ import {
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { tenderApi, bidApi } from '../../api/services';
+import { useMessage } from '../../hooks/useMessage';
 import type {
   Tender,
   TenderStatus,
@@ -75,6 +75,7 @@ interface Clarification {
 export default function TenderDetailPage() {
   const { tenderId } = useParams<{ tenderId: string }>();
   const navigate = useNavigate();
+  const message = useMessage();
   const id = Number(tenderId);
 
   const [tender, setTender] = useState<Tender | null>(null);

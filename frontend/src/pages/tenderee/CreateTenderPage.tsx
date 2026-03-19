@@ -13,12 +13,12 @@ import {
   Descriptions,
   Tag,
   Typography,
-  message,
   Divider,
 Flex, } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { tenderApi } from '../../api/services';
+import { useMessage } from '../../hooks/useMessage';
 import type { TenderType, AllocationStrategy, CriteriaType } from '../../types';
 import dayjs from 'dayjs';
 
@@ -72,6 +72,7 @@ const criteriaTypeOptions: { value: CriteriaType; label: string }[] = [
 
 export default function CreateTenderPage() {
   const navigate = useNavigate();
+  const message = useMessage();
   const [current, setCurrent] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 

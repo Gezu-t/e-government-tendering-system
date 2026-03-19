@@ -1,7 +1,8 @@
-import { Form, Input, Button, Card, Typography, Select, message, Divider, Flex } from 'antd';
+import { Form, Input, Button, Card, Typography, Select, Divider, Flex } from 'antd';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../../api/services';
 import { useAuthStore } from '../../store/authStore';
+import { useMessage } from '../../hooks/useMessage';
 import type { UserRole } from '../../types';
 import { useState } from 'react';
 
@@ -10,6 +11,7 @@ const { Title, Text } = Typography;
 export default function RegisterPage() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const message = useMessage();
   const [form] = Form.useForm();
   const [role, setRole] = useState<UserRole>('TENDERER');
 

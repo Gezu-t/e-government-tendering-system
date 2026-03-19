@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Card, Typography, Row, Col, Statistic, DatePicker, Button, Space,
-  Descriptions, Progress, Spin, message, Divider, Tag, Empty,
+  Descriptions, Progress, Spin, Divider, Tag, Empty,
 Flex, } from 'antd';
 import {
   BarChartOutlined, AuditOutlined, AppstoreOutlined, ThunderboltOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
 import { reportApi } from '../../api/services';
+import { useMessage } from '../../hooks/useMessage';
 import type { Dayjs } from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -44,6 +45,7 @@ const ACTION_COLORS: Record<string, string> = {
 const MODULE_COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16'];
 
 export default function ReportsPage() {
+  const message = useMessage();
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<ProcurementSummary>({});
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);

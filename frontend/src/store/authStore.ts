@@ -8,6 +8,7 @@ interface AuthState {
   username: string | null;
   role: UserRole | null;
   isAuthenticated: boolean;
+  _hasHydrated: boolean;
   login: (token: string, userId: number, username: string, role: UserRole) => void;
   logout: () => void;
 }
@@ -20,11 +21,17 @@ export const useAuthStore = create<AuthState>()(
       username: null,
       role: null,
       isAuthenticated: false,
+      _hasHydrated: false,
       login: (token, userId, username, role) =>
         set({ token, userId, username, role, isAuthenticated: true }),
       logout: () =>
         set({ token: null, userId: null, username: null, role: null, isAuthenticated: false }),
     }),
-    { name: 'egov-auth' }
+    {
+      name: 'egov-auth',
+      onRehydrateStorage: () => () => {
+        useAuthStore.setState({ _hasHydrated: true });
+      },
+    }
   )
 );

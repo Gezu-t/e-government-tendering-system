@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Tag, Typography, Space, Select, DatePicker, Button,
-  Row, Col, Statistic, message, Spin,
+  Row, Col, Statistic, Spin,
 } from 'antd';
 import {
   AuditOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined,
 } from '@ant-design/icons';
 import apiClient from '../../api/client';
+import { useMessage } from '../../hooks/useMessage';
 import { reportApi } from '../../api/services';
 import type { Page } from '../../types';
 import dayjs, { Dayjs } from 'dayjs';
@@ -43,6 +44,7 @@ const ENTITY_TYPE_OPTIONS = [
 ];
 
 export default function AuditLogPage() {
+  const message = useMessage();
   const [loading, setLoading] = useState(false);
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });

@@ -12,7 +12,6 @@ import {
   Tag,
   Spin,
   Modal,
-  message,
   Space,
   Divider,
   Alert,
@@ -20,6 +19,7 @@ import {
 import { UploadOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { tenderApi, bidApi } from '../../api/services';
+import { useMessage } from '../../hooks/useMessage';
 import type { Tender, TenderCriteria } from '../../types';
 import type { UploadFile } from 'antd/es/upload/interface';
 import dayjs from 'dayjs';
@@ -35,6 +35,7 @@ interface BidItemFormValue {
 export default function SubmitBidPage() {
   const { tenderId } = useParams<{ tenderId: string }>();
   const navigate = useNavigate();
+  const message = useMessage();
   const [form] = Form.useForm();
 
   const [tender, setTender] = useState<Tender | null>(null);

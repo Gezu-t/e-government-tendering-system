@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Card, Form, Slider, InputNumber, Input, Button, Typography, Space,
-  Checkbox, Alert, Spin, message, Divider, Tag, Descriptions,
+  Checkbox, Alert, Spin, Divider, Tag, Descriptions,
 Flex, } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { evaluationApi, tenderApi, bidApi } from '../../api/services';
+import { useMessage } from '../../hooks/useMessage';
 import type { Tender, Bid, TenderCriteria } from '../../types';
 
 const { Title, Text } = Typography;
@@ -18,6 +19,7 @@ interface CriteriaFormValue {
 export default function EvaluationPage() {
   const { tenderId: tenderIdParam, bidId: bidIdParam } = useParams<{ tenderId: string; bidId: string }>();
   const navigate = useNavigate();
+  const message = useMessage();
   const [form] = Form.useForm();
 
   const [tender, setTender] = useState<Tender | null>(null);

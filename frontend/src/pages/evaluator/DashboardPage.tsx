@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
-  Card, Table, Tag, Typography, Spin, message, Button, Row, Col, Statistic,
+  Card, Table, Tag, Typography, Spin, Button, Row, Col, Statistic,
 } from 'antd';
 import {
   FileSearchOutlined, CheckCircleOutlined, UnorderedListOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { tenderApi, evaluationApi, bidApi } from '../../api/services';
+import { useMessage } from '../../hooks/useMessage';
 import type { Tender, Evaluation, Page, Bid } from '../../types';
 
 const { Title } = Typography;
@@ -18,6 +19,7 @@ interface AssignedTender extends Tender {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const message = useMessage();
   const [loading, setLoading] = useState(true);
   const [tenders, setTenders] = useState<AssignedTender[]>([]);
   const [stats, setStats] = useState({ pending: 0, completed: 0, total: 0 });

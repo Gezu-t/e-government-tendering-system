@@ -1,8 +1,9 @@
-import { Form, Input, Button, Card, Typography, message, Flex } from 'antd';
+import { Form, Input, Button, Card, Typography, Flex } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../../api/services';
 import { useAuthStore } from '../../store/authStore';
+import { useMessage } from '../../hooks/useMessage';
 import type { LoginRequest } from '../../types';
 
 const { Title, Text } = Typography;
@@ -10,6 +11,7 @@ const { Title, Text } = Typography;
 export default function LoginPage() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const message = useMessage();
   const [form] = Form.useForm();
 
   const onFinish = async (values: LoginRequest) => {
