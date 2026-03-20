@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -73,12 +74,15 @@ public class Tender {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "tender", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 20)
     private List<TenderCriteria> criteria = new ArrayList<>();
 
     @OneToMany(mappedBy = "tender", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 20)
     private List<TenderItem> items = new ArrayList<>();
 
     @OneToMany(mappedBy = "tender", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 20)
     private List<TenderCategory> categories = new ArrayList<>();
 
     @PrePersist

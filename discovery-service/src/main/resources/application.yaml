@@ -1,9 +1,6 @@
 spring:
   application:
     name: discovery-service
-  config:
-    activate:
-      on-profile: default
 
 server:
   port: 8761
@@ -11,7 +8,7 @@ server:
 eureka:
   instance:
     hostname: localhost
-    prefer-ip-address: true
+    prefer-ip-address: false
   server:
     enable-self-preservation: false
     eviction-interval-timer-in-ms: 4000
@@ -24,9 +21,11 @@ eureka:
 logging:
   level:
     root: INFO
-    org.springframework.cloud.netflix.eureka: DEBUG
-    com.netflix.eureka: DEBUG
-    org.springframework.web: DEBUG
+    # Suppress noisy Eureka/Jersey client heartbeat errors on the server itself
+    com.netflix.discovery: ERROR
+    com.netflix.eureka: WARN
+    org.springframework.cloud.netflix.eureka: WARN
+    org.springframework.web: WARN
 
 management:
   endpoints:
@@ -36,5 +35,6 @@ management:
           - health
           - info
           - metrics
-  health:
-    show-details: always
+  endpoint:
+    health:
+      show-details: when-authorized

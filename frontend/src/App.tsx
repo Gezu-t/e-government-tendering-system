@@ -74,9 +74,9 @@ export default function App() {
                 <Route path="evaluations/:tenderId/:bidId" element={<ProtectedRoute roles={['EVALUATOR', 'COMMITTEE']}><EvaluationPage /></ProtectedRoute>} />
 
                 {/* Admin routes */}
-                <Route path="admin/audit" element={<ProtectedRoute roles={['TENDEREE']}><AuditLogPage /></ProtectedRoute>} />
-                <Route path="admin/reports" element={<ProtectedRoute roles={['TENDEREE']}><ReportsPage /></ProtectedRoute>} />
-                <Route path="reports" element={<ProtectedRoute roles={['TENDEREE']}><ReportsPage /></ProtectedRoute>} />
+                <Route path="admin/audit" element={<ProtectedRoute roles={['ADMIN', 'TENDEREE']}><AuditLogPage /></ProtectedRoute>} />
+                <Route path="admin/reports" element={<ProtectedRoute roles={['ADMIN', 'TENDEREE']}><ReportsPage /></ProtectedRoute>} />
+                <Route path="reports" element={<ProtectedRoute roles={['ADMIN', 'TENDEREE']}><ReportsPage /></ProtectedRoute>} />
 
                 {/* Shared routes */}
                 <Route path="contracts" element={<div>Contracts page - coming soon</div>} />
@@ -96,10 +96,11 @@ export default function App() {
 function RoleDashboard() {
   const role = useAuthStore((s) => s.role);
   switch (role) {
+    case 'ADMIN': return <AuditLogPage />;
     case 'TENDEREE': return <TendereeDashboard />;
     case 'TENDERER': return <TendererDashboard />;
     case 'EVALUATOR':
     case 'COMMITTEE': return <EvaluatorDashboard />;
-    default: return <TendereeDashboard />;
+    default: return <Navigate to="/login" replace />;
   }
 }

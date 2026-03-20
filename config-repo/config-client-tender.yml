@@ -9,6 +9,14 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  # Caffeine in-memory cache
+  # tenders: up to 500 entries, expire 5 min after last write
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=300s
+    cache-names: tenders
+
   # JPA Configuration
   jpa:
     hibernate:

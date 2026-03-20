@@ -3,7 +3,7 @@
 // ============================================================
 
 // --- User & Auth ---
-export type UserRole = 'TENDEREE' | 'TENDERER' | 'EVALUATOR' | 'COMMITTEE';
+export type UserRole = 'ADMIN' | 'TENDEREE' | 'TENDERER' | 'EVALUATOR' | 'COMMITTEE';
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
 export interface User {

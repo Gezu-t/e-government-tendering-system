@@ -2,6 +2,9 @@ package com.egov.tendering.audit.services.impl;
 
 
 import com.egov.tendering.audit.dal.dto.*;
+import com.egov.tendering.audit.dal.dto.BidStatisticsDto;
+import com.egov.tendering.audit.dal.dto.DashboardWidgetsDto;
+import com.egov.tendering.audit.dal.dto.TenderStatusReportDto;
 import com.egov.tendering.audit.dal.mapper.AuditMapper;
 import com.egov.tendering.audit.dal.model.AuditActionType;
 import com.egov.tendering.audit.dal.model.AuditLog;
@@ -345,6 +348,116 @@ public class AuditService {
                 .bidSummary(bidSummary)
                 .contractSummary(contractSummary)
                 .auditSummary(auditSummary)
+                .build();
+    }
+
+    // -------------------------------------------------------------------------
+    // Phase 11 – Dashboard widgets, tender status report, bid statistics
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns compact counts for dashboard widget cards.
+     */
+    @Transactional(readOnly = true)
+    public DashboardWidgetsDto getDashboardWidgets() {
+        List<AuditLog> all = auditLogRepository.findAll();
+
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime now = LocalDateTime.now();
+
+        List<AuditLog> todayLogs = all.stream()
+                .filter(l -> !l.getTimestamp().isBefore(todayStart))
+                .collect(Collectors.toList());
+
+        List<AuditLog> monthLogs = all.stream()
+                .filter(l -> !l.getTimestamp().isBefore(monthStart))
+                .collect(Collectors.toList());
+
+        Map<String, Long> tenderStatus = summarizeLatestStatus(all, Set.of("TENDER"));
+        Map<String, Long> bidStatus    = summarizeLatestStatus(all, Set.of("TENDEROFFER", "BID"));
+        Map<String, Long> contractStatus = summarizeLatestStatus(all, Set.of("CONTRACT"));
+
+        long activeTenders  = tenderStatus.getOrDefault("PUBLISHED", 0L) + tenderStatus.getOrDefault("ACTIVE", 0L);
+        long pendingBids    = bidStatus.getOrDefault("SUBMITTED", 0L);
+        long activeContracts = contractStatus.getOrDefault("ACTIVE", 0L);
+
+        long auditAlertsToday = todayLogs.stream()
+                .filter(l -> l.getActionType() != null
+                        && (l.getActionType().name().contains("COLLUSION")
+                            || l.getActionType().name().contains("TAMPER")
+                            || l.getActionType().name().contains("FLAG")
+                            || l.getActionType().name().contains("BLACKLIST")))
+                .count();
+
+        long tendersPublishedThisMonth = countActions(monthLogs, Set.of("TENDER"), "PUBLISHED");
+        long bidsSubmittedThisMonth    = countActions(monthLogs, Set.of("TENDEROFFER", "BID"), "SUBMITTED");
+        long contractsAwardedThisMonth = countActions(monthLogs, Set.of("CONTRACT"), "AWARD");
+
+        return DashboardWidgetsDto.builder()
+                .activeTenders(activeTenders)
+                .pendingBids(pendingBids)
+                .activeContracts(activeContracts)
+                .auditAlertsToday(auditAlertsToday)
+                .tendersPublishedThisMonth(tendersPublishedThisMonth)
+                .bidsSubmittedThisMonth(bidsSubmittedThisMonth)
+                .contractsAwardedThisMonth(contractsAwardedThisMonth)
+                .auditEntriesCreatedToday(todayLogs.size())
+                .build();
+    }
+
+    /**
+     * Returns a tender status breakdown for the given date range.
+     */
+    @Transactional(readOnly = true)
+    public TenderStatusReportDto getTenderStatusReport(LocalDate from, LocalDate to) {
+        LocalDateTime startTime = from.atStartOfDay();
+        LocalDateTime endTime   = to.atTime(23, 59, 59);
+
+        List<AuditLog> all = auditLogRepository.findAll();
+        List<AuditLog> periodLogs = all.stream()
+                .filter(l -> !l.getTimestamp().isBefore(startTime) && !l.getTimestamp().isAfter(endTime))
+                .collect(Collectors.toList());
+
+        Map<String, Long> byStatus = summarizeLatestStatus(all, Set.of("TENDER"));
+
+        return TenderStatusReportDto.builder()
+                .period(from + " to " + to)
+                .totalDistinctTenders(countDistinctEntities(all, Set.of("TENDER")))
+                .byStatus(byStatus)
+                .publishedThisPeriod(countActions(periodLogs, Set.of("TENDER"), "PUBLISHED"))
+                .closedThisPeriod(countActions(periodLogs, Set.of("TENDER"), "CLOSED"))
+                .awardedThisPeriod(countActions(periodLogs, Set.of("TENDER"), "AWARDED"))
+                .amendedThisPeriod(countActions(periodLogs, Set.of("TENDER"), "AMEND"))
+                .build();
+    }
+
+    /**
+     * Returns bid statistics for the given date range.
+     */
+    @Transactional(readOnly = true)
+    public BidStatisticsDto getBidStatistics(LocalDate from, LocalDate to) {
+        LocalDateTime startTime = from.atStartOfDay();
+        LocalDateTime endTime   = to.atTime(23, 59, 59);
+
+        List<AuditLog> all = auditLogRepository.findAll();
+        List<AuditLog> periodLogs = all.stream()
+                .filter(l -> !l.getTimestamp().isBefore(startTime) && !l.getTimestamp().isAfter(endTime))
+                .collect(Collectors.toList());
+
+        long totalBids    = countDistinctEntities(all, Set.of("TENDEROFFER", "BID"));
+        long totalTenders = countDistinctEntities(all, Set.of("TENDER"));
+        Map<String, Long> byStatus = summarizeLatestStatus(all, Set.of("TENDEROFFER", "BID"));
+
+        return BidStatisticsDto.builder()
+                .period(from + " to " + to)
+                .totalBids(totalBids)
+                .submittedThisPeriod(countActions(periodLogs, Set.of("TENDEROFFER", "BID"), "SUBMITTED"))
+                .flaggedBids(countFlaggedBids(periodLogs))
+                .averageBidsPerTender(totalTenders == 0 ? 0.0 : (double) totalBids / totalTenders)
+                .byStatus(byStatus)
+                .evaluatedThisPeriod(countActions(periodLogs, Set.of("TENDEROFFER", "BID"), "EVALUAT"))
+                .withdrawnThisPeriod(countActions(periodLogs, Set.of("TENDEROFFER", "BID"), "WITHDRAW"))
                 .build();
     }
 

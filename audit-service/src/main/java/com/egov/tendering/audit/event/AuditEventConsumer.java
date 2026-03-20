@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -97,8 +98,15 @@ public class AuditEventConsumer {
         }
     }
 
+    private Object unwrap(Object event) {
+        if (event instanceof ConsumerRecord<?, ?> record) {
+            return record.value();
+        }
+        return event;
+    }
+
     private Map<String, Object> toEventData(Object event) {
-        return objectMapper.convertValue(event, new TypeReference<>() {});
+        return objectMapper.convertValue(unwrap(event), new TypeReference<>() {});
     }
 
     private String extractEventType(Map<String, Object> eventData, Object event) {
@@ -181,10 +189,10 @@ public class AuditEventConsumer {
 
     private String toJson(Object event) {
         try {
-            return objectMapper.writeValueAsString(event);
+            return objectMapper.writeValueAsString(unwrap(event));
         } catch (JsonProcessingException ex) {
             log.warn("Failed to serialize audit event payload, falling back to toString()", ex);
-            return String.valueOf(event);
+            return String.valueOf(unwrap(event));
         }
     }
 }

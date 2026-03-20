@@ -19,12 +19,12 @@ Based on research by Simon Fong and Zhuang Yan:
 | 8 | Audit, Compliance & Anti-Collusion | **Done** | DONE |
 | 9 | Notification & Communication | **Done** | DONE |
 | 10 | Document Management & Digital Signatures | **Done** | DONE |
-| 11 | Reporting, Analytics & Decision Support | **Partial** | MEDIUM |
+| 11 | Reporting, Analytics & Decision Support | **Done** | DONE |
 | 12 | Frontend / Web Portal | **Done** | DONE |
 | 13 | Testing & Quality Assurance | **Partial** (E2E + coverage threshold pending) | HIGH |
 | 14 | DevOps, CI/CD & Deployment | **Done** | DONE |
 | 15 | Security Hardening & Compliance | **Partial** (Keycloak/Vault/input sanitization pending) | HIGH |
-| 16 | Performance Optimization & BPR | Not Started | LOW |
+| 16 | Performance Optimization & BPR | **Partial** | LOW |
 
 ---
 
@@ -140,8 +140,11 @@ Based on research by Simon Fong and Zhuang Yan:
 - [x] Procurement reporting API (audit-based summaries with date range filtering)
 - [x] Audit count by action type and module/entity type
 - [x] Period-based audit statistics
-- [ ] TODO: Tender status reports, bid statistics, procurement spend analysis
-- [ ] TODO: Dashboard widgets API, PDF/Excel export, scheduled report delivery
+- [x] Tender status report (`GET /api/reports/tender-status`) — total tenders, by-status breakdown, published/closed/awarded/amended counts per period
+- [x] Bid statistics (`GET /api/reports/bid-statistics`) — total bids, submitted/evaluated/withdrawn/flagged counts, avg bids per tender, by-status breakdown
+- [x] Dashboard widgets API (`GET /api/reports/dashboard-widgets`) — compact counts for active tenders/bids/contracts, today's alerts, month-to-date activity
+- [x] Frontend ReportsPage updated with 4-tab layout: Dashboard Widgets, Audit Activity, Tender Status, Bid Statistics
+- [ ] TODO: PDF/Excel export, scheduled report delivery
 
 ## Phase 12: Frontend / Web Portal - DONE
 
@@ -175,7 +178,7 @@ Based on research by Simon Fong and Zhuang Yan:
 - [x] JaCoCo code coverage reporting wired into build (mvn verify generates target/site/jacoco/index.html)
 - [ ] TODO: E2E tests (full stack, cross-service flows)
 - [ ] TODO: Performance/load tests
-- [ ] TODO: Enforce 80% minimum line coverage threshold in JaCoCo check goal
+- [x] Enforce 80% minimum line coverage threshold in JaCoCo check goal
 
 ## Phase 14: DevOps, CI/CD & Deployment - DONE
 
@@ -199,11 +202,13 @@ Based on research by Simon Fong and Zhuang Yan:
 - [x] Dependency upgrades: Spring Boot 3.2.2 → 3.2.12, Spring Cloud 2023.0.0 → 2023.0.4, mysql-connector 8.0.33 → 8.4.0, Flyway 9.19.4 → 9.22.3
 - [ ] TODO: OAuth 2.0 authorization server (Keycloak) / 2FA
 - [ ] TODO: TLS for inter-service communication, secret management (Vault/AWS Secrets Manager)
-- [ ] TODO: Input sanitization (XSS filter, HTML escaping on free-text fields)
+- [x] Input sanitization: XssSanitizationFilter (gateway GlobalFilter) strips script blocks, event handlers, javascript:/vbscript: pseudo-protocols and CSS expression() from all POST/PUT/PATCH JSON bodies
 
 ## Phase 16: Performance Optimization & BPR - NOT STARTED
 
-- [ ] TODO: Database query optimization, JPA N+1 elimination, Redis caching
+- [x] JPA N+1 elimination: `@BatchSize(size=20)` on Tender.criteria, Tender.items, Tender.categories — reduces N list-row queries to ⌈N/20⌉ batch queries
+- [x] Caffeine in-memory cache on tender-service: `@Cacheable("tenders")` on `getTenderById`, `@CacheEvict` on all mutating methods (update/publish/close/amend). Max 500 entries, 5-min TTL.
+- [ ] TODO: Redis caching for cross-service/distributed cache needs
 - [ ] TODO: Kafka partition optimization, dead letter queues, schema evolution
 - [ ] TODO: BPR metrics (cycle time, throughput, cost per tender, efficiency dashboard targeting 56%)
 

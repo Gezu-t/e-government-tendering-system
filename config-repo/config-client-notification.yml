@@ -85,6 +85,10 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+  health:
+    # Disable mail health check when SMTP credentials are not configured
+    mail:
+      enabled: ${SMTP_HEALTH_ENABLED:false}
   metrics:
     export:
       prometheus:
@@ -98,6 +102,10 @@ logging:
     com.egov.tendering: INFO
     org.springframework: INFO
     org.hibernate: INFO
+    # Suppress noisy Kafka fetch errors when broker is unavailable
+    org.apache.kafka.clients.FetchSessionHandler: WARN
+    org.apache.kafka.clients.NetworkClient: ERROR
+    org.apache.kafka.clients.consumer.internals.ConsumerCoordinator: ERROR
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 

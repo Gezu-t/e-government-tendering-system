@@ -268,8 +268,12 @@ public class BidSealingServiceImpl implements BidSealingService {
      */
     private String decrypt(String encryptedBase64, SecretKey key) throws Exception {
         byte[] combined = Base64.getDecoder().decode(encryptedBase64);
-        byte[] iv = Arrays.copyOfRange(combined, 0, sealProps.getGcmIvLength());
-        byte[] ciphertext = Arrays.copyOfRange(combined, sealProps.getGcmIvLength(), combined.length);
+        int ivLen = sealProps.getGcmIvLength();
+        if (combined.length <= ivLen) {
+            throw new IllegalArgumentException("Ciphertext too short — expected at least " + (ivLen + 1) + " bytes, got " + combined.length);
+        }
+        byte[] iv = Arrays.copyOfRange(combined, 0, ivLen);
+        byte[] ciphertext = Arrays.copyOfRange(combined, ivLen, combined.length);
 
         Cipher cipher = Cipher.getInstance(sealProps.getEncryptionAlgorithm());
         cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(sealProps.getGcmTagLength(), iv));

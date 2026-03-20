@@ -144,4 +144,10 @@ export const reportApi = {
     apiClient.get('/api/reports/procurement-summary', { params: { from, to } }),
   getAuditActivity: (from?: string, to?: string) =>
     apiClient.get('/api/reports/audit-activity', { params: { from, to } }),
+  getDashboardWidgets: () =>
+    apiClient.get('/api/reports/dashboard-widgets'),
+  getTenderStatusReport: (from?: string, to?: string) =>
+    apiClient.get('/api/reports/tender-status', { params: { from, to } }),
+  getBidStatistics: (from?: string, to?: string) =>
+    apiClient.get('/api/reports/bid-statistics', { params: { from, to } }),
 };

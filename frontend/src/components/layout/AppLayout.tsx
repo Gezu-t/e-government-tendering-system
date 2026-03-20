@@ -12,6 +12,11 @@ const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
 const roleMenuItems: Record<UserRole, { key: string; icon: React.ReactNode; label: string }[]> = {
+  ADMIN: [
+    { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+    { key: '/admin/audit', icon: <AuditOutlined />, label: 'Audit Log' },
+    { key: '/admin/reports', icon: <BarChartOutlined />, label: 'Reports' },
+  ],
   TENDEREE: [
     { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/tenders', icon: <FileTextOutlined />, label: 'My Tenders' },

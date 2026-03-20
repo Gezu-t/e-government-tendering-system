@@ -69,19 +69,149 @@ The system targets the **56% efficiency improvement** and **42% cycle time reduc
 
 ## Quick Start
 
-### Prerequisites
-- Java 17+, Maven 3.8+, Docker & Docker Compose, Node.js 18+
+### What You Need
 
-### One-Command Startup
+- Java 21+
+- Maven 3.8+
+- Node.js 22.12+ recommended for the frontend toolchain
+- MySQL running locally or via Docker
+- Kafka and Redis optional for partial local development, but recommended for the full event-driven flow
+
+### Supported Local Modes
+
+There are two realistic ways to run the project locally:
+
+1. Full local stack
+   MySQL, Kafka, Redis, backend services, and frontend are all available.
+
+2. Degraded local stack
+   MySQL is available, but Kafka and/or Redis are missing.
+   In this mode the core HTTP application can still start, but event-driven features, Kafka consumers, and some health checks are reduced or unavailable.
+
+### Environment Setup
+
+Copy `.env.example` to `.env` and fill in real values:
 
 ```bash
-./scripts/start.sh              # Full stack (infra + build + services + frontend)
-./scripts/start.sh infra        # MySQL, Kafka, Redis via Docker only
+cp .env.example .env
+```
+
+Minimum required variables:
+
+| Variable | Required | Purpose | Notes |
+|----------|----------|---------|-------|
+| `DB_PASSWORD` | Yes | MySQL password for backend services | Used by startup script and Spring datasource config |
+| `JWT_SECRET` | Yes | Shared HS512 signing/verification secret | Must be the same across `user-service`, gateway, and resource services |
+| `SEALING_MASTER_KEY` | Yes | Base64 AES master key for bid sealing | Must be a base64-encoded 32-byte key |
+| `SMTP_HOST` | No | Outbound SMTP host | Used by notification-service |
+| `SMTP_PORT` | No | Outbound SMTP port | Defaults to `587` in service config |
+| `SMTP_USERNAME` | No | SMTP username | Leave blank if not testing email |
+| `SMTP_PASSWORD` | No | SMTP password | Leave blank if not testing email |
+| `MYSQL_ROOT_PASSWORD` | Docker only | MySQL container password | Usually set to `${DB_PASSWORD}` |
+
+Current `.env.example` conventions:
+
+```bash
+# Database
+DB_PASSWORD=change-me-before-running
+
+# Shared JWT secret for HS512
+JWT_SECRET=change-me-to-a-64-plus-character-random-string-before-running-ok
+
+# Base64-encoded 32-byte AES key
+SEALING_MASTER_KEY=change-me-base64-32-bytes=
+```
+
+### Startup Commands
+
+```bash
+./scripts/start.sh              # Full stack: infra check + DB setup + services + frontend
+./scripts/start.sh infra        # Infrastructure only
 ./scripts/start.sh services     # Spring Boot services only
 ./scripts/start.sh frontend     # React dev server only
-./scripts/start.sh status       # Show status of all components
-./scripts/start.sh stop         # Stop everything
+./scripts/start.sh build        # Build everything, then start
+./scripts/start.sh status       # Status table for services and frontend
+./scripts/start.sh logs         # Follow current log files
+./scripts/start.sh stop         # Stop services and docker infra
 ```
+
+### Recommended Local Flows
+
+Full stack with Docker:
+
+```bash
+./scripts/start.sh
+```
+
+Backend only when infra is already running:
+
+```bash
+./scripts/start.sh services
+```
+
+Frontend only:
+
+```bash
+./scripts/start.sh frontend
+```
+
+Rebuild after backend code changes:
+
+```bash
+./scripts/start.sh build
+```
+
+### How `start.sh` Actually Behaves
+
+- It loads `.env` automatically if the file exists.
+- It checks Java, Maven, MySQL client, and Node availability.
+- It creates the service databases if MySQL is reachable.
+- It starts services in dependency order:
+  - discovery-service
+  - config-service
+  - gateway-service + user-service
+  - business services
+- It can build missing service JARs automatically.
+- It writes runtime logs to `logs/`.
+- It writes PID files to `.pids/`.
+
+### Kafka / Redis Degraded Mode
+
+If Docker is not available, or Kafka is not reachable on `localhost:9092`, `start.sh` assumes you are in a degraded local environment.
+
+For newly started JVMs, the script now:
+
+- checks Kafka reachability before launching services
+- disables Kafka listener startup where supported
+- disables Kafka health checks where supported
+
+Important: these flags only apply to newly started processes.
+
+If services are already running and Kafka availability changes, restart them:
+
+```bash
+./scripts/start.sh stop
+./scripts/start.sh services
+```
+
+If you skip the restart, old JVMs will continue trying to connect to Kafka and you will keep seeing log noise like:
+
+- `Connection to node -1 (localhost:9092) could not be established`
+- `Topic user-events not present in metadata`
+
+### Authentication Contract
+
+The application currently uses shared-secret JWTs:
+
+- `user-service` issues HS512 tokens
+- gateway validates the same HS512 tokens
+- resource services validate the same HS512 tokens
+
+This means one thing must stay consistent everywhere:
+
+- `JWT_SECRET` must be identical across all running services
+
+If one service starts with a different secret, login may succeed but the next protected API call will fail with `401`, which the frontend may interpret as “log in again”.
 
 ### Access Points
 
@@ -92,10 +222,44 @@ The system targets the **56% efficiency improvement** and **42% cycle time reduc
 | Eureka Dashboard | http://localhost:8761 |
 | Kafka UI | http://localhost:8090 |
 
+### Service Ports
+
+These are the effective ports used by the startup script:
+
+| Service | Port |
+|---------|------|
+| `discovery-service` | `8761` |
+| `config-service` | `8888` |
+| `gateway-service` | `8080` |
+| `user-service` | `8081` |
+| `tender-service` | `8082` |
+| `bidding-service` | `8083` |
+| `contract-service` | `8084` |
+| `document-service` | `8085` |
+| `notification-service` | `8086` |
+| `evaluation-service` | `8087` |
+| `audit-service` | `8088` via script startup |
+| `frontend` | `3000` |
+
+### Demo Users
+
+Default seeded users from Flyway:
+
+| Username | Password | Role |
+|----------|----------|------|
+| `admin` | `admin123` | `ADMIN` |
+| `tenderee` | `tenderee123` | `TENDEREE` |
+| `tenderer` | `tenderer123` | `TENDERER` |
+| `evaluator` | `evaluator123` | `EVALUATOR` |
+| `committee` | `committee123` | `COMMITTEE` |
+
+If you log in with `admin`, the frontend now has explicit `ADMIN` role support. Earlier local builds could fall into the wrong dashboard path and appear to “loop” back to login.
+
 ## User Roles
 
 | Role | Capabilities |
 |------|-------------|
+| **ADMIN** | Cross-service administration, audit access, reporting, privileged operational actions |
 | **TENDEREE** | Create/publish/amend tenders, manage evaluations, award contracts, view reports |
 | **TENDERER** | Browse tenders, submit pre-qualification, submit sealed bids, track contracts |
 | **EVALUATOR** | Score bids against criteria, declare conflicts of interest |
@@ -187,18 +351,85 @@ Implementing the key requirements from Fong & Yan's "Design of a Web-based Tende
 
 ## Testing
 
-8 test files across 4 core services (~80 tests):
+Default test path excludes Docker-dependent integration tests:
 
 ```bash
-mvn test    # Run all tests
+mvn test                # Unit/default test path
+mvn test -Pintegration  # Integration tests, requires Docker/Testcontainers
 ```
 
-| Service | Tests |
-|---------|-------|
-| user-service | UserServiceImpl, VendorQualificationServiceImpl |
-| tender-service | TenderServiceImpl, TenderController |
-| bidding-service | BidSealingServiceImpl, AntiCollusionServiceImpl |
-| evaluation-service | EvaluationServiceImpl, MultiCriteriaEvaluationServiceImpl |
+Notes:
+
+- `mvn test` is intended to pass in a standard developer environment without Docker.
+- The integration profile runs `*IntegrationTest.java` classes explicitly.
+- Frontend production builds require a modern Node runtime compatible with Vite in this repo.
+
+### Frontend Tooling Notes
+
+The frontend build currently expects a modern Node runtime. If you see errors like:
+
+- `Vite requires Node.js version 20.19+ or 22.12+`
+- `node:util does not provide an export named styleText`
+
+your shell is using an older Node version than the one shown elsewhere on your machine. Fix the active shell runtime first, then rerun frontend commands.
+
+### Troubleshooting
+
+#### Login redirects back to login repeatedly
+
+Common causes:
+
+1. `JWT_SECRET` does not match across running services.
+2. You logged in as a role the frontend did not support in the current build.
+3. The first protected API call returned `401`, and the frontend interceptor forced a logout.
+
+Checks:
+
+```bash
+./scripts/start.sh status
+tail -f logs/gateway-service.log logs/user-service.log
+```
+
+Look for:
+
+- successful `POST /api/auth/login`
+- immediate `401` on the next protected request
+- JWT validation/signature errors in gateway or resource-service logs
+
+#### Kafka connection warnings spam the logs
+
+This means Kafka is not reachable but one or more services were started without degraded-mode flags.
+
+Fix:
+
+```bash
+./scripts/start.sh stop
+./scripts/start.sh services
+```
+
+Or start Kafka properly and then restart the stack.
+
+#### Notification or audit features do not react to events
+
+That is expected if Kafka is down. The HTTP APIs can still work partially, but event-driven flows such as notifications, audit ingestion, and asynchronous domain reactions will not behave normally.
+
+#### Frontend build fails even though `node --version` looked fine earlier
+
+Your terminal session may still be using another Node binary. Recheck in the same shell:
+
+```bash
+node --version
+which node
+```
+
+#### `start.sh services` says a service is already running
+
+That process keeps its original JVM flags. If you changed `.env`, Kafka availability, or code, restart the stack:
+
+```bash
+./scripts/start.sh stop
+./scripts/start.sh services
+```
 
 ## Technical Stack
 
@@ -228,3 +459,5 @@ See [docs/IMPLEMENTATION_PHASES.md](docs/IMPLEMENTATION_PHASES.md) for the full 
 ## Contact
 
 Gezahegn Tsegaye — [GitHub](https://github.com/GezahegnTsegaye/e-government-tendering-system)
+
+For support and feedback, please contact Gezahegn Tsegaye.

@@ -154,6 +154,17 @@ is_kafka_available() {
   (echo >"/dev/tcp/$KAFKA_HOST/$KAFKA_PORT") >/dev/null 2>&1
 }
 
+detect_kafka_mode() {
+  if is_kafka_available; then
+    KAFKA_AVAILABLE=1
+    log_ok "Kafka is reachable at $KAFKA_HOST:$KAFKA_PORT"
+  else
+    KAFKA_AVAILABLE=0
+    log_warn "Kafka is not reachable at $KAFKA_HOST:$KAFKA_PORT"
+    log_warn "Services will start in degraded local mode with Kafka listeners disabled"
+  fi
+}
+
 setup_databases() {
   log_step "Setting Up Databases"
 
@@ -251,14 +262,7 @@ start_infra() {
     log_info "  Redis:     localhost:6379"
   fi
 
-  if is_kafka_available; then
-    KAFKA_AVAILABLE=1
-    log_ok "Kafka is reachable at $KAFKA_HOST:$KAFKA_PORT"
-  else
-    KAFKA_AVAILABLE=0
-    log_warn "Kafka is not reachable at $KAFKA_HOST:$KAFKA_PORT"
-    log_warn "Services will start in degraded local mode with Kafka listeners disabled"
-  fi
+  detect_kafka_mode
 }
 
 # ============================================================
@@ -275,6 +279,9 @@ start_service() {
   if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
     if curl -s "http://localhost:$port/actuator/health" &>/dev/null; then
       log_warn "$name already running (PID: $(cat "$pid_file"))"
+      if [ "$KAFKA_AVAILABLE" -eq 0 ]; then
+        log_warn "$name is using its existing process; degraded Kafka flags only apply after a restart"
+      fi
       return 0
     else
       log_info "$name has stale PID $(cat "$pid_file"), killing and restarting..."
@@ -365,6 +372,9 @@ start_service() {
       "--spring.kafka.listener.auto-startup=false"
       "--spring.kafka.consumer.auto-startup=false"
       "--management.health.kafka.enabled=false"
+      # Silence the per-consumer retry WARN/INFO flood when broker is unreachable
+      "--logging.level.org.apache.kafka.clients.NetworkClient=ERROR"
+      "--logging.level.org.apache.kafka.clients.consumer.internals.ConsumerCoordinator=ERROR"
     )
   fi
 
@@ -622,6 +632,7 @@ case "${1:-all}" in
     ;;
   services)
     check_prerequisites
+    detect_kafka_mode
     setup_databases
     start_services
     print_summary

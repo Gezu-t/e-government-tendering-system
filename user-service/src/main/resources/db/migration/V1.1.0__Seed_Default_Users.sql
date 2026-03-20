@@ -12,23 +12,23 @@
 INSERT INTO users (username, email, password_hash, role, status, created_at, updated_at)
 VALUES
     ('admin', 'admin@egov.gov',
-     '$2b$10$aQPDP94qMpxqJz7Y.x9TluNVDZ8kQJQ7Mcv.yvm4w53b8o8mVi5Dm',
+     '$2a$10$aQPDP94qMpxqJz7Y.x9TluNVDZ8kQJQ7Mcv.yvm4w53b8o8mVi5Dm',
      'ADMIN', 'ACTIVE', NOW(), NOW()),
 
     ('tenderee', 'tenderee@egov.gov',
-     '$2b$10$Lt8AmcuthvNKphtj4ZZA5eqW/TrlHqDtTA202IdbAumB7HTPykxNG',
+     '$2a$10$Lt8AmcuthvNKphtj4ZZA5eqW/TrlHqDtTA202IdbAumB7HTPykxNG',
      'TENDEREE', 'ACTIVE', NOW(), NOW()),
 
     ('tenderer', 'tenderer@egov.gov',
-     '$2b$10$krypeXH1aPwQeRAROI9IeeajDtQEwh9vNBshAPu3TlNy3cSQJVxdK',
+     '$2a$10$krypeXH1aPwQeRAROI9IeeajDtQEwh9vNBshAPu3TlNy3cSQJVxdK',
      'TENDERER', 'ACTIVE', NOW(), NOW()),
 
     ('evaluator', 'evaluator@egov.gov',
-     '$2b$10$FBAwCe4qX6jFbmbt3M3EuuKhKj1e9HU2PvpcibHWGN3WoEveFSB/K',
+     '$2a$10$FBAwCe4qX6jFbmbt3M3EuuKhKj1e9HU2PvpcibHWGN3WoEveFSB/K',
      'EVALUATOR', 'ACTIVE', NOW(), NOW()),
 
     ('committee', 'committee@egov.gov',
-     '$2b$10$6raTGVp3zsvZQ5o.pYCGwe2dH.XkcLS6dtnJ7hZ5J0osp7y0AqQda',
+     '$2a$10$6raTGVp3zsvZQ5o.pYCGwe2dH.XkcLS6dtnJ7hZ5J0osp7y0AqQda',
      'COMMITTEE', 'ACTIVE', NOW(), NOW());
 
 -- Create a demo organization for the tenderer

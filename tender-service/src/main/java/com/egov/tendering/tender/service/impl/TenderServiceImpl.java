@@ -14,6 +14,8 @@ import com.egov.tendering.tender.service.TenderService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -124,6 +126,7 @@ public class TenderServiceImpl implements TenderService {
   }
 
   @Override
+  @Cacheable(value = "tenders", key = "#tenderId")
   public TenderDTO getTenderById(Long tenderId) {
     log.info("Retrieving tender with ID: {}", tenderId);
 
@@ -156,6 +159,7 @@ public class TenderServiceImpl implements TenderService {
 
   @Override
   @Transactional
+  @CacheEvict(value = "tenders", key = "#tenderId")
   public TenderDTO updateTenderStatus(Long tenderId, UpdateTenderStatusRequest request) {
     log.info("Updating tender status: {} for tender ID: {}", request.getStatus(), tenderId);
 
@@ -175,6 +179,7 @@ public class TenderServiceImpl implements TenderService {
 
   @Override
   @Transactional
+  @CacheEvict(value = "tenders", key = "#tenderId")
   public TenderDTO publishTender(Long tenderId) {
     log.info("Publishing tender with ID: {}", tenderId);
 
@@ -196,6 +201,7 @@ public class TenderServiceImpl implements TenderService {
 
   @Override
   @Transactional
+  @CacheEvict(value = "tenders", key = "#tenderId")
   public TenderDTO closeTender(Long tenderId) {
     log.info("Closing tender with ID: {}", tenderId);
 
@@ -217,6 +223,7 @@ public class TenderServiceImpl implements TenderService {
 
   @Override
   @Transactional
+  @CacheEvict(value = "tenders", key = "#tenderId")
   public TenderDTO amendTender(Long tenderId, TenderAmendmentRequest request, Long amendedBy) {
     log.info("Amending tender: {} by user: {}", tenderId, amendedBy);
 

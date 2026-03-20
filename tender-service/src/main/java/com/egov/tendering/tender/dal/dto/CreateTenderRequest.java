@@ -2,6 +2,7 @@ package com.egov.tendering.tender.dal.dto;
 
 import com.egov.tendering.tender.dal.model.AllocationStrategy;
 import com.egov.tendering.tender.dal.model.TenderType;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,6 +22,7 @@ public class CreateTenderRequest {
     @Size(max = 200, message = "Title cannot exceed 200 characters")
     private String title;
 
+    @Size(max = 5000, message = "Description cannot exceed 5000 characters")
     private String description;
 
     @NotNull(message = "Tender type is required")
@@ -44,8 +46,10 @@ public class CreateTenderRequest {
     private Boolean isAverageAllocation;
 
     @NotEmpty(message = "At least one criterion is required")
+    @Valid
     private List<TenderCriteriaRequest> criteria;
 
     @NotEmpty(message = "At least one item is required")
+    @Valid
     private List<TenderItemRequest> items;
 }
