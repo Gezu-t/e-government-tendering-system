@@ -1,6 +1,6 @@
 package com.egov.tendering.gateway.security;
 
-import com.egov.tendering.gateway.config.GatewayProperties;
+import com.egov.tendering.gateway.config.AppGatewayProperties;
 import com.egov.tendering.gateway.config.SecurityConfig;
 import com.egov.tendering.gateway.controller.FallbackController;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -39,7 +39,7 @@ import java.util.List;
  * token issuance, gateway validation, or endpoint authorization problems.
  */
 @WebFluxTest(controllers = FallbackController.class)
-@Import({SecurityConfig.class, GatewayProperties.class})
+@Import({SecurityConfig.class, AppGatewayProperties.class})
 @TestPropertySource(properties = {
         "app.security.jwt.secret=test-secret-key-that-is-at-least-64-bytes-long-for-hs512-algorithm-ok",
         "app.security.jwt.claim-roles=roles",

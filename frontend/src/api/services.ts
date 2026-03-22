@@ -1,7 +1,7 @@
 import apiClient from './client';
 import type {
   AuthResponse, LoginRequest, RegistrationRequest,
-  Tender, Bid, Evaluation, Contract, Page,
+  Tender, Bid, Evaluation, Contract, Page, Notification,
   VendorQualification, TenderAmendment, TenderStatus, TenderType,
 } from '../types';
 
@@ -100,10 +100,23 @@ export const contractApi = {
     apiClient.get<Contract>(`/api/contracts/${id}`),
   getByTender: (tenderId: number) =>
     apiClient.get<Contract[]>(`/api/contracts/tender/${tenderId}`),
+  getByBidder: (bidderId: number, params?: { page?: number; size?: number }) =>
+    apiClient.get<Page<Contract>>(`/api/contracts/bidder/${bidderId}`, { params }),
+  search: (params?: { status?: string; page?: number; size?: number }) =>
+    apiClient.get<Page<Contract>>('/api/contracts', { params }),
   activate: (id: number) =>
-    apiClient.patch<Contract>(`/api/contracts/${id}/activate`),
+    apiClient.post<Contract>(`/api/contracts/${id}/activate`),
   complete: (id: number) =>
-    apiClient.patch<Contract>(`/api/contracts/${id}/complete`),
+    apiClient.post<Contract>(`/api/contracts/${id}/complete`),
+  terminate: (id: number, reason: string) =>
+    apiClient.post<Contract>(`/api/contracts/${id}/terminate`, { reason }),
+  // Milestones
+  getMilestones: (contractId: number) =>
+    apiClient.get(`/api/contracts/${contractId}/milestones`),
+  addMilestone: (contractId: number, data: unknown) =>
+    apiClient.post(`/api/contracts/${contractId}/milestones`, data),
+  completeMilestone: (contractId: number, milestoneId: number) =>
+    apiClient.patch(`/api/contracts/${contractId}/milestones/${milestoneId}/complete`),
   // Performance
   submitPerformance: (contractId: number, data: unknown) =>
     apiClient.post(`/api/vendor-performance/contracts/${contractId}`, data),
@@ -114,6 +127,20 @@ export const contractApi = {
     apiClient.post(`/api/contracts/${contractId}/amendments`, data),
   getAmendments: (contractId: number) =>
     apiClient.get(`/api/contracts/${contractId}/amendments`),
+};
+
+// ============================================================
+// Notification API
+// ============================================================
+export const notificationApi = {
+  getByUser: (userId: number, unreadOnly?: boolean) =>
+    apiClient.get<Notification[]>(`/api/notifications/user/${userId}`, { params: { unreadOnly } }),
+  getById: (id: number) =>
+    apiClient.get<Notification>(`/api/notifications/${id}`),
+  markAsRead: (id: number) =>
+    apiClient.put(`/api/notifications/${id}/read`),
+  getUnreadCount: (userId: number) =>
+    apiClient.get<number>(`/api/notifications/count/unread/${userId}`),
 };
 
 // ============================================================

@@ -56,9 +56,9 @@ public class SecurityConfig {
     @Value("${cors.max-age:3600}")
     private long corsMaxAge;
 
-    private final GatewayProperties gatewayProps;
+    private final AppGatewayProperties gatewayProps;
 
-    public SecurityConfig(GatewayProperties gatewayProps) {
+    public SecurityConfig(AppGatewayProperties gatewayProps) {
         this.gatewayProps = gatewayProps;
     }
 

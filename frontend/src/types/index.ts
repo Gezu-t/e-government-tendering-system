@@ -213,6 +213,21 @@ export interface Page<T> {
   last: boolean;
 }
 
+// --- Notification ---
+export type NotificationType = 'TENDER_PUBLISHED' | 'BID_RECEIVED' | 'BID_EVALUATED' | 'CONTRACT_AWARDED' | 'SYSTEM' | 'INFO' | 'WARNING';
+
+export interface Notification {
+  id: number;
+  userId: number;
+  title: string;
+  message: string;
+  type: NotificationType;
+  read: boolean;
+  createdAt: string;
+  referenceId?: number;
+  referenceType?: string;
+}
+
 // --- Vendor Qualification ---
 export type QualificationStatus = 'PENDING' | 'UNDER_REVIEW' | 'QUALIFIED' | 'CONDITIONALLY_QUALIFIED' | 'DISQUALIFIED' | 'EXPIRED' | 'SUSPENDED';
 

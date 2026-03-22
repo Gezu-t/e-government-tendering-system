@@ -20,7 +20,7 @@ import java.util.List;
 @Configuration
 @ConfigurationProperties(prefix = "app.gateway")
 @Data
-public class GatewayProperties {
+public class AppGatewayProperties {
 
     private int defaultTimeout = 10000;
     private int connectTimeout = 2000;

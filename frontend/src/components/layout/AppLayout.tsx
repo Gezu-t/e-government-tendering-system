@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Layout, Menu, Avatar, Dropdown, Typography, Space, Badge } from 'antd';
 import {
   DashboardOutlined, FileTextOutlined, AuditOutlined, TeamOutlined,
@@ -6,6 +7,7 @@ import {
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { notificationApi } from '../../api/services';
 import type { UserRole } from '../../types';
 
 const { Header, Sider, Content } = Layout;
@@ -54,7 +56,21 @@ const adminItems = [
 export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { username, role, logout } = useAuthStore();
+  const { userId, username, role, logout } = useAuthStore();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!userId) return;
+    notificationApi.getUnreadCount(userId)
+      .then(({ data }) => setUnreadCount(typeof data === 'number' ? data : 0))
+      .catch(() => {});
+    const interval = setInterval(() => {
+      notificationApi.getUnreadCount(userId)
+        .then(({ data }) => setUnreadCount(typeof data === 'number' ? data : 0))
+        .catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [userId]);
 
   const menuItems = role ? roleMenuItems[role] || [] : [];
 
@@ -100,8 +116,8 @@ export default function AppLayout() {
       <Layout>
         <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderBottom: '1px solid #f0f0f0' }}>
           <Space size="large">
-            <Badge count={0}>
-              <BellOutlined style={{ fontSize: 18, cursor: 'pointer' }} />
+            <Badge count={unreadCount}>
+              <BellOutlined style={{ fontSize: 18, cursor: 'pointer' }} onClick={() => navigate('/notifications')} />
             </Badge>
             <Dropdown menu={userMenu} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>

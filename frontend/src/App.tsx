@@ -20,8 +20,11 @@ const SubmitBid = lazy(() => import('./pages/tenderer/SubmitBidPage'));
 const Qualification = lazy(() => import('./pages/tenderer/QualificationPage'));
 const EvaluatorDashboard = lazy(() => import('./pages/evaluator/DashboardPage'));
 const EvaluationPage = lazy(() => import('./pages/evaluator/EvaluationPage'));
+const AdminDashboard = lazy(() => import('./pages/admin/DashboardPage'));
 const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage'));
 const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
+const ContractsPage = lazy(() => import('./pages/shared/ContractsPage'));
+const NotificationsPage = lazy(() => import('./pages/shared/NotificationsPage'));
 
 const queryClient = new QueryClient();
 
@@ -79,7 +82,8 @@ export default function App() {
                 <Route path="reports" element={<ProtectedRoute roles={['ADMIN', 'TENDEREE']}><ReportsPage /></ProtectedRoute>} />
 
                 {/* Shared routes */}
-                <Route path="contracts" element={<div>Contracts page - coming soon</div>} />
+                <Route path="contracts" element={<ContractsPage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/login" replace />} />
@@ -96,7 +100,7 @@ export default function App() {
 function RoleDashboard() {
   const role = useAuthStore((s) => s.role);
   switch (role) {
-    case 'ADMIN': return <AuditLogPage />;
+    case 'ADMIN': return <AdminDashboard />;
     case 'TENDEREE': return <TendereeDashboard />;
     case 'TENDERER': return <TendererDashboard />;
     case 'EVALUATOR':
